@@ -208,9 +208,15 @@ def spec_load(state: TaskState) -> dict:
         raise FileNotFoundError(f"spec_path not found: {spec_path!r}")
 
     # Compute constitution digest (short — not full text in state, 第2条)
-    constitution_path = os.environ.get(
-        "SDD_CONSTITUTION_PATH", "docs/constitution.md"
-    )
+    # Resolution order: env override → project constitution (docs/, created by
+    # /init-task) → distributable default (specs/, shipped with the toolkit).
+    constitution_path = os.environ.get("SDD_CONSTITUTION_PATH")
+    if not constitution_path:
+        constitution_path = (
+            "docs/constitution.md"
+            if Path("docs/constitution.md").exists()
+            else "specs/constitution.md"
+        )
     constitution_bytes = Path(constitution_path).read_bytes()
     digest = "sha256:" + hashlib.sha256(constitution_bytes).hexdigest()[:16]
 

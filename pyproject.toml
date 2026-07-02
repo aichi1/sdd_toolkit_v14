@@ -32,7 +32,7 @@ dev = [
 ]
 
 [tool.setuptools]
-packages = ["graph", "mcp", "harness", "review", "agents"]
+packages = ["graph", "mcp_servers", "harness", "review", "agents"]
 
 [tool.setuptools.package-dir]
 "" = "."
