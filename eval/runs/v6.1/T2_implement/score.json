@@ -1,0 +1,53 @@
+{
+  "scores": {
+    "correctness": 2,
+    "completeness": 2,
+    "efficiency": 2,
+    "robustness": 2,
+    "maintainability": 3,
+    "usability": 2,
+    "safety": 3
+  },
+  "checklist": [
+    {
+      "id": "I1",
+      "status": "partial",
+      "evidence": "expected_manifest にREADME.md は期待されるが、SKILL.mdテンプレにREADME生成の具体的手順・構成指示がない。Builder は手順に従うためテンプレ不足で品質がブレる"
+    },
+    {
+      "id": "I2",
+      "status": "partial",
+      "evidence": "team-roster.json に qa_test_engineer/security_reviewer はあるが、SKILL.mdテンプレに入力バリデーション・エラーハンドリングの具体的手順がない"
+    },
+    {
+      "id": "I3",
+      "status": "partial",
+      "evidence": "expected_manifest に tests/ を期待。qa_test_engineer エージェントは存在するが、SKILL.mdテンプレにテスト生成の手順・フレームワーク指定がない"
+    },
+    {
+      "id": "I4",
+      "status": "partial",
+      "evidence": "software_architect エージェントは存在するが、SKILL.mdテンプレにコード構成の指示がない。src/ ディレクトリ構成の具体的ガイダンスなし"
+    }
+  ],
+  "checklist_grade": "D",
+  "metrics": {
+    "manifest_fill_rate": 1.0,
+    "turns": "unknown",
+    "retries": "unknown"
+  },
+  "evidence_files": [
+    ".claude/skills/init-task/SKILL.md",
+    ".claude/skills/run-phase/SKILL.md",
+    "templates/team-roster.json",
+    "templates/agents/software_architect.md",
+    "templates/agents/qa_test_engineer.md",
+    "templates/agents/security_reviewer.md",
+    ".claude/agents/builder.md",
+    ".claude/agents/validator.md",
+    "eval/scenarios/T2_implement/checklist.json",
+    "eval/scenarios/T2_implement/expected_manifest.json",
+    "README.md"
+  ],
+  "notes": "実装系タスクへの対応が最も弱い。init-task/SKILL.md のdocs構造設計にコード実装固有のカテゴリ(small_implementation)が明示的にない。SKILL.mdテンプレが文書作成寄りで、src/tests/README.md の具体的な生成手順・構成がない。専門家エージェントは揃っているが、Phase内での呼び出しタイミングが不明確。checklist_grade D により correctness/completeness/usability に制約。"
+}

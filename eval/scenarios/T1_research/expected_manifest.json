@@ -1,0 +1,8 @@
+{
+  "expected": [
+    "docs/requirements.md",
+    "docs/plan.md",
+    "docs/team.md",
+    "outputs/phase-01/report.md"
+  ]
+}

@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sdd-toolkit-v14"
+version = "0.1.0"
+description = "SDD Toolkit v14 — LangGraph outer shell + Claude Agent SDK inner agents"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+
+dependencies = [
+    # Outer orchestration shell — pin tightly; API changes between minor versions
+    "langgraph==1.2.7",
+    "langgraph-checkpoint-sqlite==3.1.0",
+    # Agent SDK — pin tightly; hooks/subagent API moves fast
+    "claude-agent-sdk==0.2.110",
+    # Context retrieval (in-process MCP)
+    "chromadb==1.5.9",
+    # Local review UI (approval gate)
+    "fastapi==0.138.2",
+    "uvicorn==0.49.0",
+    # Observability
+    "langsmith==0.9.4",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+]
+
+[tool.setuptools]
+packages = ["graph", "mcp", "harness", "review", "agents"]
+
+[tool.setuptools.package-dir]
+"" = "."

@@ -1,0 +1,175 @@
+{
+  "iteration_id": "v6.4",
+  "date": "2026-02-12",
+  "commit": "",
+  "scenarios": {
+    "T1_research": {
+      "scores": {
+        "correctness": 4,
+        "completeness": 4,
+        "efficiency": 4,
+        "robustness": 3,
+        "maintainability": 3,
+        "usability": 4,
+        "safety": 3
+      },
+      "checklist": [
+        {
+          "id": "R1",
+          "status": "pass",
+          "evidence": "templates/skills/research_report.md 必須セクション1 TL;DR。validate-outputs.py が TL;DR キーワードを自動チェック。Validator 全項目検証義務"
+        },
+        {
+          "id": "R2",
+          "status": "pass",
+          "evidence": "templates/skills/research_report.md 必須セクション2 比較軸。validate-outputs.py で自動検出"
+        },
+        {
+          "id": "R3",
+          "status": "pass",
+          "evidence": "templates/skills/research_report.md 必須セクション7 出典。validate-outputs.py で出典キーワード自動チェック"
+        },
+        {
+          "id": "R4",
+          "status": "pass",
+          "evidence": "templates/skills/research_report.md 必須セクション5 不確実性。validate-outputs.py で自動チェック"
+        }
+      ],
+      "checklist_grade": "A",
+      "metrics": {
+        "manifest_fill_rate": 1.0,
+        "turns": "unknown",
+        "retries": "unknown",
+        "init_task_qa_rounds": "1-2 (intake template)",
+        "fast_path_eligible": true
+      },
+      "evidence_files": [
+        "templates/intake/research_report.md",
+        ".claude/skills/init-task/SKILL.md",
+        ".claude/skills/run-phase/SKILL.md",
+        "scripts/validate-outputs.py",
+        ".claude/agents/validator.md",
+        "templates/skills/research_report.md",
+        "templates/team-roster.json",
+        "README.md"
+      ],
+      "notes": "v6.3→v6.4: efficiency 3→4。ワンショット仕様収集（research_reportは10問一括、旧来は5ファイル×個別Q&A）により init-task のターン数が大幅削減。ファストパス（Quality Criteria 6項目のため条件外だが、単純Phaseでは適用可能）とスマートモード（PASS時自動進行）により run-phase の手数も削減。correctness/completeness/usability は v6.3 から変化なし（テンプレ・プリチェック・Validator義務は同一）。"
+    },
+    "T2_implement": {
+      "scores": {
+        "correctness": 4,
+        "completeness": 4,
+        "efficiency": 4,
+        "robustness": 4,
+        "maintainability": 3,
+        "usability": 3,
+        "safety": 3
+      },
+      "checklist": [
+        {
+          "id": "I1",
+          "status": "pass",
+          "evidence": "templates/skills/small_implementation.md README必須。validate-outputs.py が README.md 存在を自動チェック。Validator 全項目検証義務"
+        },
+        {
+          "id": "I2",
+          "status": "pass",
+          "evidence": "templates/skills/small_implementation.md エラーハンドリング指示。Validator Quality Criteria「入力エラーや例外の扱いがコード内で実装」を必ず検証"
+        },
+        {
+          "id": "I3",
+          "status": "pass",
+          "evidence": "templates/skills/small_implementation.md tests/必須。validate-outputs.py が tests/ 存在を自動チェック。Validator Quality Criteria「最低1つの自動テスト」を必ず検証"
+        },
+        {
+          "id": "I4",
+          "status": "pass",
+          "evidence": "templates/skills/small_implementation.md モジュール分割指示。validate-outputs.py が src/ 存在を自動チェック。Validator Quality Criteria「コードがモジュール分割」を必ず検証"
+        }
+      ],
+      "checklist_grade": "A",
+      "metrics": {
+        "manifest_fill_rate": 1.0,
+        "turns": "unknown",
+        "retries": "unknown",
+        "init_task_qa_rounds": "1-2 (intake template)",
+        "fast_path_eligible": true
+      },
+      "evidence_files": [
+        "templates/intake/small_implementation.md",
+        ".claude/skills/init-task/SKILL.md",
+        ".claude/skills/run-phase/SKILL.md",
+        "scripts/validate-outputs.py",
+        ".claude/agents/validator.md",
+        "templates/skills/small_implementation.md",
+        "templates/team-roster.json",
+        "README.md"
+      ],
+      "notes": "v6.3→v6.4: efficiency 3→4。ワンショット仕様収集（small_implementationは8問一括、旧来は4ファイル×個別Q&A）により init-task ターン数削減。ファストパス条件を満たしやすい（Quality Criteria 5項目、成果物3種=README+src+tests）ため、T2 はファストパスの恩恵が最大。スマートモードでPASS時自動進行。correctness/completeness/robustness は v6.3 から変化なし。"
+    },
+    "T3_proposal": {
+      "scores": {
+        "correctness": 4,
+        "completeness": 4,
+        "efficiency": 4,
+        "robustness": 3,
+        "maintainability": 3,
+        "usability": 4,
+        "safety": 3
+      },
+      "checklist": [
+        {
+          "id": "P1",
+          "status": "pass",
+          "evidence": "templates/skills/internal_proposal.md 必須セクション1。validate-outputs.py が「目的」「成功条件」キーワードを自動チェック。Validator 全項目検証義務"
+        },
+        {
+          "id": "P2",
+          "status": "pass",
+          "evidence": "templates/skills/internal_proposal.md 必須セクション3 選択肢比較。validate-outputs.py が「選択肢」「案」キーワード自動チェック。Validator 全項目検証義務"
+        },
+        {
+          "id": "P3",
+          "status": "pass",
+          "evidence": "templates/skills/internal_proposal.md 必須セクション5 リスクと対策。validate-outputs.py が「リスク」「対策」キーワード自動チェック。Validator 全項目検証義務"
+        },
+        {
+          "id": "P4",
+          "status": "pass",
+          "evidence": "templates/skills/internal_proposal.md 必須セクション6 次アクション。validate-outputs.py が「担当」「next action」「ロードマップ」自動チェック。Validator 全項目検証義務"
+        }
+      ],
+      "checklist_grade": "A",
+      "metrics": {
+        "manifest_fill_rate": 1.0,
+        "turns": "unknown",
+        "retries": "unknown",
+        "init_task_qa_rounds": "1-2 (intake template)",
+        "fast_path_eligible": true
+      },
+      "evidence_files": [
+        "templates/intake/internal_proposal.md",
+        ".claude/skills/init-task/SKILL.md",
+        ".claude/skills/run-phase/SKILL.md",
+        "scripts/validate-outputs.py",
+        ".claude/agents/validator.md",
+        "templates/skills/internal_proposal.md",
+        "templates/team-roster.json",
+        "README.md"
+      ],
+      "notes": "v6.3→v6.4: efficiency 3→4。ワンショット仕様収集（internal_proposalは9問一括、旧来は5ファイル×個別Q&A）により init-task ターン数削減。ファストパス条件（Quality Criteria 6項目で5項目上限を超えるため条件外）だが、スマートモードでPASS時自動進行。correctness/completeness/usability は v6.3 から変化なし。"
+    }
+  },
+  "overall": {
+    "scores": {
+      "correctness": 4.0,
+      "completeness": 4.0,
+      "efficiency": 4.0,
+      "robustness": 3.333,
+      "maintainability": 3.0,
+      "usability": 3.667,
+      "safety": 3.0
+    },
+    "computed_by": "eval/aggregate.py"
+  }
+}

@@ -1,0 +1,178 @@
+{
+  "iteration_id": "v6.1",
+  "date": "2026-02-12",
+  "commit": "",
+  "scenarios": {
+    "T1_research": {
+      "scores": {
+        "correctness": 3,
+        "completeness": 2,
+        "efficiency": 3,
+        "robustness": 2,
+        "maintainability": 3,
+        "usability": 3,
+        "safety": 3
+      },
+      "checklist": [
+        {
+          "id": "R1",
+          "status": "partial",
+          "evidence": "init-task/SKILL.md:62-69 で format.md を定義するが、TL;DR/結論先行の明示的指示がSKILL.mdテンプレに欠如"
+        },
+        {
+          "id": "R2",
+          "status": "pass",
+          "evidence": "init-task/SKILL.md:62-69 で scope.md+criteria.md を設計。run-phase/SKILL.md で評価軸ベースの比較手順あり"
+        },
+        {
+          "id": "R3",
+          "status": "pass",
+          "evidence": "init-task/SKILL.md:65 sources.md 定義。team-roster.json citations_researcher エージェント。quality-gates.md Gate 1.1 データ信頼性チェック"
+        },
+        {
+          "id": "R4",
+          "status": "partial",
+          "evidence": "team-roster.json に risk_reviewer はあるが、SKILL.mdテンプレに不確実性/留意点セクションの必須指示がない。risk_reviewer の呼び出しタイミングも曖昧"
+        }
+      ],
+      "checklist_grade": "C",
+      "metrics": {
+        "manifest_fill_rate": 1.0,
+        "turns": "unknown",
+        "retries": "unknown"
+      },
+      "evidence_files": [
+        ".claude/skills/init-task/SKILL.md",
+        ".claude/skills/run-phase/SKILL.md",
+        ".claude/rules/quality-gates.md",
+        "templates/team-roster.json",
+        "templates/agents/citations_researcher.md",
+        "templates/agents/risk_reviewer.md",
+        ".claude/agents/builder.md",
+        ".claude/agents/validator.md",
+        "eval/scenarios/T1_research/checklist.json",
+        "eval/scenarios/T1_research/expected_manifest.json",
+        "README.md"
+      ],
+      "notes": "構造は整っている（docs設計、Builder/Validator分離、専門家エージェント）が、SKILL.mdテンプレが汎用的すぎてシナリオ固有の品質基準（TL;DR、不確実性明記）が抜ける。checklist_grade C のため completeness に上限制約。research_report 固有の docs(audience.md, format.md) は設計されているが、成果物の構成テンプレに反映が弱い。"
+    },
+    "T2_implement": {
+      "scores": {
+        "correctness": 2,
+        "completeness": 2,
+        "efficiency": 2,
+        "robustness": 2,
+        "maintainability": 3,
+        "usability": 2,
+        "safety": 3
+      },
+      "checklist": [
+        {
+          "id": "I1",
+          "status": "partial",
+          "evidence": "expected_manifest にREADME.md は期待されるが、SKILL.mdテンプレにREADME生成の具体的手順・構成指示がない。Builder は手順に従うためテンプレ不足で品質がブレる"
+        },
+        {
+          "id": "I2",
+          "status": "partial",
+          "evidence": "team-roster.json に qa_test_engineer/security_reviewer はあるが、SKILL.mdテンプレに入力バリデーション・エラーハンドリングの具体的手順がない"
+        },
+        {
+          "id": "I3",
+          "status": "partial",
+          "evidence": "expected_manifest に tests/ を期待。qa_test_engineer エージェントは存在するが、SKILL.mdテンプレにテスト生成の手順・フレームワーク指定がない"
+        },
+        {
+          "id": "I4",
+          "status": "partial",
+          "evidence": "software_architect エージェントは存在するが、SKILL.mdテンプレにコード構成の指示がない。src/ ディレクトリ構成の具体的ガイダンスなし"
+        }
+      ],
+      "checklist_grade": "D",
+      "metrics": {
+        "manifest_fill_rate": 1.0,
+        "turns": "unknown",
+        "retries": "unknown"
+      },
+      "evidence_files": [
+        ".claude/skills/init-task/SKILL.md",
+        ".claude/skills/run-phase/SKILL.md",
+        "templates/team-roster.json",
+        "templates/agents/software_architect.md",
+        "templates/agents/qa_test_engineer.md",
+        "templates/agents/security_reviewer.md",
+        ".claude/agents/builder.md",
+        ".claude/agents/validator.md",
+        "eval/scenarios/T2_implement/checklist.json",
+        "eval/scenarios/T2_implement/expected_manifest.json",
+        "README.md"
+      ],
+      "notes": "実装系タスクへの対応が最も弱い。init-task/SKILL.md のdocs構造設計にコード実装固有のカテゴリ(small_implementation)が明示的にない。SKILL.mdテンプレが文書作成寄りで、src/tests/README.md の具体的な生成手順・構成がない。専門家エージェントは揃っているが、Phase内での呼び出しタイミングが不明確。checklist_grade D により correctness/completeness/usability に制約。"
+    },
+    "T3_proposal": {
+      "scores": {
+        "correctness": 3,
+        "completeness": 2,
+        "efficiency": 3,
+        "robustness": 2,
+        "maintainability": 3,
+        "usability": 2,
+        "safety": 3
+      },
+      "checklist": [
+        {
+          "id": "P1",
+          "status": "pass",
+          "evidence": "init-task/SKILL.md:73-79 で technical-proposal に success-criteria.md, requirements.md を設計。目的と成功条件の定義導線がある"
+        },
+        {
+          "id": "P2",
+          "status": "partial",
+          "evidence": "docs構造に選択肢比較セクションの明示的定義なし。constraints.md + requirements.md から導出可能だが、SKILL.mdテンプレに「選択肢を列挙・比較する」手順がない"
+        },
+        {
+          "id": "P3",
+          "status": "partial",
+          "evidence": "team-roster.json に risk_reviewer あり。ただし SKILL.md テンプレに「リスク分析セクションを必ず含める」の指示がなく、risk_reviewer の呼び出しタイミングも不明確"
+        },
+        {
+          "id": "P4",
+          "status": "partial",
+          "evidence": "SKILL.md テンプレに「次アクション(担当/期限/成果物)」セクションの指示がない。plan.md はあるが Phase 計画であり提案書内のロードマップとは異なる"
+        }
+      ],
+      "checklist_grade": "D",
+      "metrics": {
+        "manifest_fill_rate": 1.0,
+        "turns": "unknown",
+        "retries": "unknown"
+      },
+      "evidence_files": [
+        ".claude/skills/init-task/SKILL.md",
+        ".claude/skills/run-phase/SKILL.md",
+        "templates/team-roster.json",
+        "templates/agents/business_analyst.md",
+        "templates/agents/risk_reviewer.md",
+        "templates/agents/cost_modeler.md",
+        ".claude/agents/builder.md",
+        ".claude/agents/validator.md",
+        "eval/scenarios/T3_proposal/checklist.json",
+        "eval/scenarios/T3_proposal/expected_manifest.json",
+        "README.md"
+      ],
+      "notes": "docs構造設計(technical-proposal)は整っており correctness は decent。しかし SKILL.md テンプレが汎用的すぎ、提案書固有の必須セクション（選択肢比較、リスク対策、次アクション）の生成指示がない。専門家エージェント(business_analyst, risk_reviewer, cost_modeler)は揃っているが呼び出しタイミングが曖昧。checklist_grade D により completeness/usability に制約。research_report よりはdocs構造が合っている分、correctness は少し高い。"
+    }
+  },
+  "overall": {
+    "scores": {
+      "correctness": 2.667,
+      "completeness": 2.0,
+      "efficiency": 2.667,
+      "robustness": 2.0,
+      "maintainability": 3.0,
+      "usability": 2.333,
+      "safety": 3.0
+    },
+    "computed_by": "eval/aggregate.py"
+  }
+}

@@ -1,0 +1,49 @@
+{
+  "scores": {
+    "correctness": 4,
+    "completeness": 4,
+    "efficiency": 3,
+    "robustness": 3,
+    "maintainability": 3,
+    "usability": 4,
+    "safety": 3
+  },
+  "checklist": [
+    {
+      "id": "R1",
+      "status": "pass",
+      "evidence": "templates/skills/research_report.md 必須セクション1 TL;DR。Validator が Quality Criteria 全項目を検証する義務あり（validator.md コンテキスト優先度1）。validate-outputs.py が TL;DR キーワードを自動チェック"
+    },
+    {
+      "id": "R2",
+      "status": "pass",
+      "evidence": "templates/skills/research_report.md 必須セクション2 比較軸。validate-outputs.py の category_required_sections で自動検出"
+    },
+    {
+      "id": "R3",
+      "status": "pass",
+      "evidence": "templates/skills/research_report.md 必須セクション7 出典。validate-outputs.py で出典キーワード自動チェック。Validator 全項目検証義務"
+    },
+    {
+      "id": "R4",
+      "status": "pass",
+      "evidence": "templates/skills/research_report.md 必須セクション5 不確実性。validate-outputs.py で自動チェック。Validator 全項目検証義務"
+    }
+  ],
+  "checklist_grade": "A",
+  "metrics": {
+    "manifest_fill_rate": 1.0,
+    "turns": "unknown",
+    "retries": "unknown"
+  },
+  "evidence_files": [
+    "scripts/validate-outputs.py",
+    ".claude/skills/run-phase/SKILL.md",
+    ".claude/agents/validator.md",
+    "templates/skills/research_report.md",
+    ".claude/skills/init-task/SKILL.md",
+    "templates/team-roster.json",
+    "README.md"
+  ],
+  "notes": "v6.2→v6.3: correctness 3→4。テンプレの指示（v6.2）に加え、自動プリチェック（validate-outputs.py）と Validator 全項目検証義務化により、成果物の整合性が構造的に担保される。efficiency は変化なし（プリチェック追加の手順増と、早期FAIL検出の効率化が相殺）。completeness/usability は v6.2 から変化なし（テンプレ自体は変更していないため）。"
+}

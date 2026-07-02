@@ -1,0 +1,53 @@
+{
+  "scores": {
+    "correctness": 3,
+    "completeness": 2,
+    "efficiency": 3,
+    "robustness": 2,
+    "maintainability": 3,
+    "usability": 3,
+    "safety": 3
+  },
+  "checklist": [
+    {
+      "id": "R1",
+      "status": "partial",
+      "evidence": "init-task/SKILL.md:62-69 で format.md を定義するが、TL;DR/結論先行の明示的指示がSKILL.mdテンプレに欠如"
+    },
+    {
+      "id": "R2",
+      "status": "pass",
+      "evidence": "init-task/SKILL.md:62-69 で scope.md+criteria.md を設計。run-phase/SKILL.md で評価軸ベースの比較手順あり"
+    },
+    {
+      "id": "R3",
+      "status": "pass",
+      "evidence": "init-task/SKILL.md:65 sources.md 定義。team-roster.json citations_researcher エージェント。quality-gates.md Gate 1.1 データ信頼性チェック"
+    },
+    {
+      "id": "R4",
+      "status": "partial",
+      "evidence": "team-roster.json に risk_reviewer はあるが、SKILL.mdテンプレに不確実性/留意点セクションの必須指示がない。risk_reviewer の呼び出しタイミングも曖昧"
+    }
+  ],
+  "checklist_grade": "C",
+  "metrics": {
+    "manifest_fill_rate": 1.0,
+    "turns": "unknown",
+    "retries": "unknown"
+  },
+  "evidence_files": [
+    ".claude/skills/init-task/SKILL.md",
+    ".claude/skills/run-phase/SKILL.md",
+    ".claude/rules/quality-gates.md",
+    "templates/team-roster.json",
+    "templates/agents/citations_researcher.md",
+    "templates/agents/risk_reviewer.md",
+    ".claude/agents/builder.md",
+    ".claude/agents/validator.md",
+    "eval/scenarios/T1_research/checklist.json",
+    "eval/scenarios/T1_research/expected_manifest.json",
+    "README.md"
+  ],
+  "notes": "構造は整っている（docs設計、Builder/Validator分離、専門家エージェント）が、SKILL.mdテンプレが汎用的すぎてシナリオ固有の品質基準（TL;DR、不確実性明記）が抜ける。checklist_grade C のため completeness に上限制約。research_report 固有の docs(audience.md, format.md) は設計されているが、成果物の構成テンプレに反映が弱い。"
+}

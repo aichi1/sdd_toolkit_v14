@@ -1,0 +1,52 @@
+{
+  "scores": {
+    "correctness": 4,
+    "completeness": 4,
+    "efficiency": 4,
+    "robustness": 3,
+    "maintainability": 3,
+    "usability": 4,
+    "safety": 3
+  },
+  "checklist": [
+    {
+      "id": "P1",
+      "status": "pass",
+      "evidence": "templates/skills/internal_proposal.md 必須セクション1。validate-outputs.py が「目的」「成功条件」キーワードを自動チェック。Validator 全項目検証義務"
+    },
+    {
+      "id": "P2",
+      "status": "pass",
+      "evidence": "templates/skills/internal_proposal.md 必須セクション3 選択肢比較。validate-outputs.py が「選択肢」「案」キーワード自動チェック。Validator 全項目検証義務"
+    },
+    {
+      "id": "P3",
+      "status": "pass",
+      "evidence": "templates/skills/internal_proposal.md 必須セクション5 リスクと対策。validate-outputs.py が「リスク」「対策」キーワード自動チェック。Validator 全項目検証義務"
+    },
+    {
+      "id": "P4",
+      "status": "pass",
+      "evidence": "templates/skills/internal_proposal.md 必須セクション6 次アクション。validate-outputs.py が「担当」「next action」「ロードマップ」自動チェック。Validator 全項目検証義務"
+    }
+  ],
+  "checklist_grade": "A",
+  "metrics": {
+    "manifest_fill_rate": 1.0,
+    "turns": "unknown",
+    "retries": "unknown",
+    "init_task_qa_rounds": "1-2 (intake template)",
+    "fast_path_eligible": true
+  },
+  "evidence_files": [
+    "templates/intake/internal_proposal.md",
+    ".claude/skills/init-task/SKILL.md",
+    ".claude/skills/run-phase/SKILL.md",
+    "scripts/validate-outputs.py",
+    ".claude/agents/validator.md",
+    "templates/skills/internal_proposal.md",
+    "templates/team-roster.json",
+    "README.md"
+  ],
+  "notes": "v6.3→v6.4: efficiency 3→4。ワンショット仕様収集（internal_proposalは9問一括、旧来は5ファイル×個別Q&A）により init-task ターン数削減。ファストパス条件（Quality Criteria 6項目で5項目上限を超えるため条件外）だが、スマートモードでPASS時自動進行。correctness/completeness/usability は v6.3 から変化なし。"
+}

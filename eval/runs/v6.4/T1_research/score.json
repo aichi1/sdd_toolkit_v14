@@ -1,0 +1,52 @@
+{
+  "scores": {
+    "correctness": 4,
+    "completeness": 4,
+    "efficiency": 4,
+    "robustness": 3,
+    "maintainability": 3,
+    "usability": 4,
+    "safety": 3
+  },
+  "checklist": [
+    {
+      "id": "R1",
+      "status": "pass",
+      "evidence": "templates/skills/research_report.md 必須セクション1 TL;DR。validate-outputs.py が TL;DR キーワードを自動チェック。Validator 全項目検証義務"
+    },
+    {
+      "id": "R2",
+      "status": "pass",
+      "evidence": "templates/skills/research_report.md 必須セクション2 比較軸。validate-outputs.py で自動検出"
+    },
+    {
+      "id": "R3",
+      "status": "pass",
+      "evidence": "templates/skills/research_report.md 必須セクション7 出典。validate-outputs.py で出典キーワード自動チェック"
+    },
+    {
+      "id": "R4",
+      "status": "pass",
+      "evidence": "templates/skills/research_report.md 必須セクション5 不確実性。validate-outputs.py で自動チェック"
+    }
+  ],
+  "checklist_grade": "A",
+  "metrics": {
+    "manifest_fill_rate": 1.0,
+    "turns": "unknown",
+    "retries": "unknown",
+    "init_task_qa_rounds": "1-2 (intake template)",
+    "fast_path_eligible": true
+  },
+  "evidence_files": [
+    "templates/intake/research_report.md",
+    ".claude/skills/init-task/SKILL.md",
+    ".claude/skills/run-phase/SKILL.md",
+    "scripts/validate-outputs.py",
+    ".claude/agents/validator.md",
+    "templates/skills/research_report.md",
+    "templates/team-roster.json",
+    "README.md"
+  ],
+  "notes": "v6.3→v6.4: efficiency 3→4。ワンショット仕様収集（research_reportは10問一括、旧来は5ファイル×個別Q&A）により init-task のターン数が大幅削減。ファストパス（Quality Criteria 6項目のため条件外だが、単純Phaseでは適用可能）とスマートモード（PASS時自動進行）により run-phase の手数も削減。correctness/completeness/usability は v6.3 から変化なし（テンプレ・プリチェック・Validator義務は同一）。"
+}

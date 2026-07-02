@@ -1,0 +1,44 @@
+# validate_rules.yaml: カテゴリ別バリデーション除外ルール
+#
+# validate-outputs.py が --project-type オプションで指定されたカテゴリに基づき、
+# チェックの除外(skip)と追加要求(required)を制御する。
+#
+# 新しいカテゴリを追加するには、categories: の下に新しいエントリを追加する。
+
+categories:
+  mkdocs:
+    description: "MkDocs/Material for MkDocs プロジェクト"
+    skip_checks:
+      - "src/tests/README"
+      - "test_*.py"
+      - "src/"
+      - "tests/"
+    required_checks:
+      - "mkdocs.yml"
+
+  python:
+    description: "Python CLI/ライブラリプロジェクト"
+    skip_checks: []
+    required_checks:
+      - "src/"
+      - "tests/"
+
+  nodejs:
+    description: "Node.js プロジェクト"
+    skip_checks:
+      - "test_*.py"
+    required_checks:
+      - "package.json"
+
+  generic:
+    description: "デフォルト（カテゴリ未指定時）"
+    skip_checks: []
+    required_checks: []
+
+  sdd_infra:
+    description: "sdd_toolkit_v14: 実行コードは実パス(graph/,mcp/,harness/,review/,agents/,specs/)に置き、outputs/phase-N/ は README+.metadata.json+.validation/ のみ（制作構造≠配布構造）。src/tests は outputs 配下に持たない。"
+    skip_checks:
+      - "src/"
+      - "tests/"
+    required_checks:
+      - "README"

@@ -1,0 +1,49 @@
+{
+  "scores": {
+    "correctness": 4,
+    "completeness": 4,
+    "efficiency": 3,
+    "robustness": 3,
+    "maintainability": 3,
+    "usability": 4,
+    "safety": 3
+  },
+  "checklist": [
+    {
+      "id": "P1",
+      "status": "pass",
+      "evidence": "templates/skills/internal_proposal.md 必須セクション1。validate-outputs.py が「目的」「成功条件」キーワードを自動チェック。Validator 全項目検証義務"
+    },
+    {
+      "id": "P2",
+      "status": "pass",
+      "evidence": "templates/skills/internal_proposal.md 必須セクション3 選択肢比較。validate-outputs.py が「選択肢」「案」キーワード自動チェック。Validator 全項目検証義務"
+    },
+    {
+      "id": "P3",
+      "status": "pass",
+      "evidence": "templates/skills/internal_proposal.md 必須セクション5 リスクと対策。validate-outputs.py が「リスク」「対策」キーワード自動チェック。Validator 全項目検証義務"
+    },
+    {
+      "id": "P4",
+      "status": "pass",
+      "evidence": "templates/skills/internal_proposal.md 必須セクション6 次アクション。validate-outputs.py が「担当」「next action」「ロードマップ」自動チェック。Validator 全項目検証義務"
+    }
+  ],
+  "checklist_grade": "A",
+  "metrics": {
+    "manifest_fill_rate": 1.0,
+    "turns": "unknown",
+    "retries": "unknown"
+  },
+  "evidence_files": [
+    "scripts/validate-outputs.py",
+    ".claude/skills/run-phase/SKILL.md",
+    ".claude/agents/validator.md",
+    "templates/skills/internal_proposal.md",
+    ".claude/skills/init-task/SKILL.md",
+    "templates/team-roster.json",
+    "README.md"
+  ],
+  "notes": "v6.2→v6.3: correctness 3→4。提案書の必須セクション（選択肢比較、リスク、次アクション）がキーワードベースで自動検出される。Validator が Quality Criteria 全項目を検証する義務があるため、テンプレの指示が確実に検証される。robustness は 3 のまま（T3 は文書系でファイル構成のゆらぎが T2 より小さいため、プリチェックの恩恵が相対的に小さい）。"
+}

@@ -1,0 +1,80 @@
+{
+  "version": "1.0",
+  "how_to_use": "Used by /init-task to select specialists. Copy selected specialists into .claude/agents/generated/ as sub-agent files.",
+  "task_types": {
+    "research_report": {
+      "description": "調査・比較・ファクト整理・社内向けレポート",
+      "skill_template": "templates/skills/research_report.md",
+      "intake_template": "templates/intake/research_report.md",
+      "specialists": ["citations_researcher", "domain_sme", "doc_editor", "risk_reviewer"],
+      "invocation_timing": {
+        "citations_researcher": "出典整理時（Procedure Step 9 相当）",
+        "domain_sme": "分析時（Procedure Step 4 相当）",
+        "doc_editor": "最終レビュー（最終Phase）",
+        "risk_reviewer": "不確実性洗い出し時（Procedure Step 6 相当）"
+      }
+    },
+    "small_implementation": {
+      "description": "小規模な実装（CLI/スクリプト/APIなど）",
+      "skill_template": "templates/skills/small_implementation.md",
+      "intake_template": "templates/intake/small_implementation.md",
+      "specialists": ["software_architect", "qa_test_engineer", "security_reviewer", "doc_editor"],
+      "invocation_timing": {
+        "software_architect": "設計・実装時（Procedure Step 2-4 相当）",
+        "qa_test_engineer": "テスト作成時（Procedure Step 6 相当）",
+        "security_reviewer": "エラーハンドリング後（Procedure Step 5 後）",
+        "doc_editor": "README作成時（Procedure Step 8 相当）"
+      }
+    },
+    "internal_proposal": {
+      "description": "社内提案（稟議、導入、ロードマップ、選定）",
+      "skill_template": "templates/skills/internal_proposal.md",
+      "intake_template": "templates/intake/internal_proposal.md",
+      "specialists": ["business_analyst", "risk_reviewer", "cost_modeler", "doc_editor"],
+      "invocation_timing": {
+        "business_analyst": "目的・現状分析時（Procedure Step 1-2 相当）",
+        "risk_reviewer": "リスク洗い出し時（Procedure Step 6 相当）",
+        "cost_modeler": "コスト概算時（Procedure Step 4 相当）",
+        "doc_editor": "最終レビュー（最終Phase）"
+      }
+    }
+  },
+  "specialist_catalog": {
+    "citations_researcher": {
+      "name": "sdd-citations-researcher",
+      "description": "根拠収集、出典の明示、引用・リンク整備（Web参照がある場合）"
+    },
+    "domain_sme": {
+      "name": "sdd-domain-sme",
+      "description": "ドメイン観点での妥当性確認（用語、前提、落とし穴）"
+    },
+    "software_architect": {
+      "name": "sdd-software-architect",
+      "description": "構成設計、モジュール分割、拡張性・保守性の観点を補強"
+    },
+    "qa_test_engineer": {
+      "name": "sdd-qa-test-engineer",
+      "description": "テスト観点・品質ゲート設計、異常系、再現性の担保"
+    },
+    "security_reviewer": {
+      "name": "sdd-security-reviewer",
+      "description": "セキュリティ/権限/秘密情報の取り扱いレビュー"
+    },
+    "doc_editor": {
+      "name": "sdd-doc-editor",
+      "description": "読みやすさ、情報設計、用語統一、構造の改善"
+    },
+    "risk_reviewer": {
+      "name": "sdd-risk-reviewer",
+      "description": "リスク/懸念/不確実性の洗い出し、意思決定材料の整理"
+    },
+    "business_analyst": {
+      "name": "sdd-business-analyst",
+      "description": "目的・価値・KPI・ステークホルダー整理"
+    },
+    "cost_modeler": {
+      "name": "sdd-cost-modeler",
+      "description": "コスト/ROI/費用対効果の概算と前提整理"
+    }
+  }
+}

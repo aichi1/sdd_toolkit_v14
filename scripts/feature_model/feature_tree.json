@@ -1,0 +1,183 @@
+{
+  "root": "sdd-knowledge-system",
+  "version": "1.0.0",
+  "description": "SDD Toolkit v6 Knowledge System Feature Model",
+  "features": {
+    "registry": {
+      "type": "mandatory",
+      "description": "Component registry and metadata management",
+      "children": {
+        "component-storage": {
+          "type": "mandatory",
+          "description": "JSON-based component storage with registry.json and components/"
+        },
+        "metadata-tracking": {
+          "type": "mandatory",
+          "description": "Provenance and metrics tracking (source project, usage count, effectiveness)"
+        },
+        "duplicate-check": {
+          "type": "mandatory",
+          "description": "Duplicate detection on registration based on name and type"
+        }
+      }
+    },
+    "search": {
+      "type": "mandatory",
+      "description": "Knowledge base search capabilities",
+      "children": {
+        "tag-search": {
+          "type": "mandatory",
+          "description": "Tag-based filtering with AND/OR operators"
+        },
+        "bm25-search": {
+          "type": "mandatory",
+          "description": "BM25 full-text search with bm25s library"
+        },
+        "claude-rerank": {
+          "type": "optional",
+          "description": "Claude-based result reranking for semantic relevance"
+        }
+      }
+    },
+    "extraction": {
+      "type": "mandatory",
+      "description": "Component extraction from projects",
+      "children": {
+        "finalize-extract": {
+          "type": "mandatory",
+          "description": "Extract components on /finalize command"
+        },
+        "phase-complete-hook": {
+          "type": "optional",
+          "description": "PostToolUse hook for incremental extraction after each phase"
+        }
+      }
+    },
+    "context": {
+      "type": "optional",
+      "description": "Active context generation for task initialization",
+      "children": {
+        "active-context": {
+          "type": "mandatory",
+          "description": "Auto-generate context for /init-task from search results"
+        },
+        "retrospective-lessons": {
+          "type": "optional",
+          "description": "Include lessons from retrospectives/summary.json"
+        }
+      }
+    },
+    "curation": {
+      "type": "optional",
+      "description": "Automated knowledge curation",
+      "children": {
+        "knowledge-curator": {
+          "type": "mandatory",
+          "description": "Sub-agent for knowledge improvement with persistent memory"
+        },
+        "auto-tagging": {
+          "type": "optional",
+          "description": "Automatic tag generation from component content"
+        }
+      }
+    },
+    "templates": {
+      "type": "optional",
+      "description": "Template fragment system for composable docs and skills",
+      "children": {
+        "skill-fragments": {
+          "type": "mandatory",
+          "description": "Skill procedure fragments (research-phase, comparison-phase, etc.)"
+        },
+        "doc-fragments": {
+          "type": "optional",
+          "description": "Document template fragments (background.md.tpl, scope.md.tpl)"
+        },
+        "quality-fragments": {
+          "type": "optional",
+          "description": "Quality criteria fragments (citation-criteria, comparison-criteria)"
+        }
+      }
+    },
+    "advanced": {
+      "type": "optional",
+      "description": "Advanced features for external integration",
+      "children": {
+        "mcp-server": {
+          "type": "optional",
+          "description": "REST API for knowledge base access via FastAPI"
+        },
+        "dependency-graph": {
+          "type": "optional",
+          "description": "Component dependency graph and recommendations"
+        },
+        "feature-model": {
+          "type": "mandatory",
+          "description": "This SPL feature model for configuration management"
+        }
+      }
+    }
+  },
+  "constraints": [
+    {
+      "type": "requires",
+      "if": "search.claude-rerank",
+      "then": "search.bm25-search",
+      "reason": "Claude reranking requires initial BM25 search results"
+    },
+    {
+      "type": "requires",
+      "if": "context.active-context",
+      "then": "search.bm25-search",
+      "reason": "Active context generation uses BM25 to find relevant components"
+    },
+    {
+      "type": "requires",
+      "if": "curation.knowledge-curator",
+      "then": "registry",
+      "reason": "Curator needs registry to read and update components"
+    },
+    {
+      "type": "requires",
+      "if": "extraction.phase-complete-hook",
+      "then": "extraction.finalize-extract",
+      "reason": "Incremental extraction builds on finalize extraction logic"
+    },
+    {
+      "type": "requires",
+      "if": "advanced.dependency-graph",
+      "then": "registry",
+      "reason": "Dependency graph builds from registry.json component dependencies"
+    },
+    {
+      "type": "requires",
+      "if": "advanced.mcp-server",
+      "then": "search",
+      "reason": "MCP server exposes search capabilities via REST API"
+    },
+    {
+      "type": "requires",
+      "if": "context.retrospective-lessons",
+      "then": "context.active-context",
+      "reason": "Retrospective lessons are included in active context generation"
+    },
+    {
+      "type": "requires",
+      "if": "templates.doc-fragments",
+      "then": "templates.skill-fragments",
+      "reason": "Doc fragments follow the same pattern as skill fragments"
+    },
+    {
+      "type": "requires",
+      "if": "templates.quality-fragments",
+      "then": "templates.skill-fragments",
+      "reason": "Quality fragments are extensions of skill fragment system"
+    },
+    {
+      "type": "excludes",
+      "feature1": "curation.auto-tagging",
+      "feature2": "search.claude-rerank",
+      "reason": "Both need Claude API calls, pick one to minimize API cost and latency"
+    }
+  ]
+}

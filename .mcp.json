@@ -1,0 +1,31 @@
+{
+  "_note": "MCP server configuration for sdd_toolkit_v14. 'ctx' (Phase 3) and 'law' (Phase 5) are in-process SDK servers via create_sdk_mcp_server. 'kb' is a REST/HTTP server — it is NOT a stdio MCP server and must NOT be stdio-handshaked by Claude; start it separately.",
+  "mcpServers": {
+    "ctx": {
+      "_note": "Phase 3 — context_server: in-process SDK MCP (create_sdk_mcp_server). Runs inside the Python process via claude_agent_sdk, not as a separate process. No stdio handshake. (dir renamed mcp/→mcp_servers/ to avoid shadowing the PyPI 'mcp' package.)",
+      "command": "python3",
+      "args": ["-m", "mcp_servers.context_server"],
+      "env": {
+        "SDD_DOCS_DIR": "docs"
+      }
+    },
+    "law": {
+      "_note": "Phase 5 — constitution_server: in-process SDK MCP (create_sdk_mcp_server). Implemented. Tools: list_articles, get_article. Parses specs/constitution.md. Path override via SDD_CONSTITUTION_PATH env var.",
+      "command": "python3",
+      "args": ["-m", "mcp_servers.constitution_server"],
+      "env": {
+        "SDD_CONSTITUTION_PATH": "specs/constitution.md"
+      }
+    },
+    "kb": {
+      "_note": "IMPORTANT: This is a FastAPI/uvicorn REST server (HTTP on localhost:8741), NOT a stdio MCP server. Do NOT let Claude or any MCP client attempt a stdio handshake with this entry — it will fail. Start it separately with: python3 scripts/mcp_server/server.py (or: uvicorn mcp_server.server:app --host 127.0.0.1 --port 8741 --app-dir scripts). This entry is kept here for documentation purposes only; remove or comment it out if your MCP runtime tries to auto-launch it as a stdio server.",
+      "_type": "rest-http-not-stdio-mcp",
+      "_start_cmd": "python3 scripts/mcp_server/server.py",
+      "_base_url": "http://127.0.0.1:8741",
+      "env": {
+        "SDD_KB_DIR": "~/.sdd-knowledge",
+        "PYTHONPATH": "scripts"
+      }
+    }
+  }
+}

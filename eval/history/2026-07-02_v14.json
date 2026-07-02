@@ -1,0 +1,87 @@
+{
+  "iteration_id": "v14",
+  "date": "2026-07-02",
+  "commit": "",
+  "meta": {
+    "note": "v14 is a software toolkit (LangGraph outer shell + Agent SDK inner loop), not an SDD-workflow documentation output. The fixed T1_research/T2_implement/T3_proposal scenarios used to score v6.x (which score /init-task + /run-phase document generation) do not apply. This record uses a single bespoke scenario 'v14_e2e_selfassessment' that scores the v14 deliverable itself (Phase 0-8), using eval/rubric.json's 7 axes and eval/SCORING_GUIDE.md's anchors as the scoring method. Comparison baseline for D4 (退行なし) is v6.4 (the latest available baseline; there is no 'v13' row in eval/history/ or eval/summary.csv) per the Phase 8 approved interpretation recorded in outputs/phase-08/e2e-report.md."
+  },
+  "scenarios": {
+    "v14_e2e_selfassessment": {
+      "scores": {
+        "correctness": 4,
+        "completeness": 4,
+        "efficiency": 4,
+        "robustness": 4,
+        "maintainability": 4,
+        "usability": 4,
+        "safety": 4
+      },
+      "checklist": [
+        {
+          "id": "D1",
+          "status": "pass",
+          "evidence": "All Phase 0-8 outputs exist under outputs/phase-{00..08}/ with README.md + .metadata.json; Phase 7 Validator PASS 8/8 (0 critical); Phase 8 full suite (tests/) = 415 passed / 0 skipped."
+        },
+        {
+          "id": "D2",
+          "status": "pass",
+          "evidence": "tests/test_e2e.py::TestE2EHappyPath::test_full_cycle_all_fr_satisfied — real spec_load -> assemble_context -> build -> verify -> eval -> review(interrupt) -> resume(approve) -> merge, on a temp repo; merge commit count only increases after approve (asserted before AND after)."
+        },
+        {
+          "id": "D3",
+          "status": "pass",
+          "evidence": "Same E2E test asserts every FR-1.1..FR-5.3 AC directly against real (non-mocked) node output; see outputs/phase-08/e2e-report.md FR/AC matrix."
+        },
+        {
+          "id": "D4",
+          "status": "pass",
+          "evidence": "This record's overall scores are >= the v6.4 baseline row on all 7 axes (see eval/summary.csv). See outputs/phase-08/e2e-report.md 7-axis comparison table for per-axis justification."
+        },
+        {
+          "id": "D5",
+          "status": "pass",
+          "evidence": "tests/test_e2e.py::TestE2ENegativeSweep (6 sub-tests a-f): forbidden Bash/git-push/.env (第5条), CWE-78 artifact routes eval->build (第10条/FR-4.1), checkpoint <10KB (第2条/NFR-1), no merge before approval (第3条), no host-exec fallback when podman absent (第4条/NFR-3), no specialist has Task tool (FR-3.3)."
+        }
+      ],
+      "checklist_grade": "A",
+      "metrics": {
+        "manifest_fill_rate": 1.0,
+        "turns": "unknown (not instrumented across the v14 build)",
+        "retries": "unknown; qualitative: Phase 7 Validator PASS 0 critical, Phase 8 required exactly one minor test-string fix (tests/test_verify_node.py regex) after a deliberate stale-message cleanup in graph/nodes.py",
+        "pytest_summary": "415 passed, 0 failed, 0 skipped (406 pre-existing + 9 new tests/test_e2e.py)",
+        "fast_path_eligible": false
+      },
+      "evidence_files": [
+        "tests/test_e2e.py",
+        "graph/nodes.py",
+        "graph/build_graph.py",
+        "graph/state.py",
+        "harness/sandbox.py",
+        "harness/hooks.py",
+        "harness/eval_suite.py",
+        "harness/security_checks.py",
+        "harness/observability.py",
+        "agents/definitions.py",
+        "review/app.py",
+        "mcp_servers/context_server.py",
+        "mcp_servers/constitution_server.py",
+        "docs/constitution.md",
+        "docs/requirements.md",
+        "outputs/phase-08/e2e-report.md"
+      ],
+      "notes": "Scores are deliberately non-inflated (no 5s) per SCORING_GUIDE.md guidance ('5 is rare'). Two axes carry documented, honest constraints rather than being scored down silently: (1) FR-4.2 cost/token values are structural zero-placeholders pending real Agent SDK ResultMessage wiring; (2) cgroups v2 MemoryMax real enforcement is unverifiable on this WSL2/corporate-policy host (command construction + mocked tests cover it; --network=none egress block and read-only mount ARE proven with a real container in tests/test_sandbox_exec.py and tests/test_e2e.py::TestE2ERealSandbox)."
+    }
+  },
+  "overall": {
+    "scores": {
+      "correctness": 4.0,
+      "completeness": 4.0,
+      "efficiency": 4.0,
+      "robustness": 4.0,
+      "maintainability": 4.0,
+      "usability": 4.0,
+      "safety": 4.0
+    },
+    "computed_by": "manual self-assessment (Phase 8 Builder), not eval/aggregate.py (single bespoke scenario, mean == scenario score)"
+  }
+}

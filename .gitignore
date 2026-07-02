@@ -1,0 +1,25 @@
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# Windows security zone metadata (from downloads)
+*:Zone.Identifier
+*Zone.Identifier
+
+# LangGraph state DB (SqliteSaver — Phase 1+)
+state.db
+state.db-shm
+state.db-wal
+
+# Git worktrees created by carve_worktree (T4.2a)
+worktrees/
+
+# Phase 4 (T4.1): audit log from PreToolUse hooks (contains tool call history)
+# Path: logs/audit.jsonl (configurable via SDD_AUDIT_LOG env var)
+logs/
+
+# Phase 6 (T6.3): local observability store (total_cost_usd + token records)
+# Default path is ~/.sdd-runs/ (outside project, never tracked).
+# In-project fallbacks (if SDD_OBS_STORE points into project root):
+sdd-runs/
+.sdd-runs/

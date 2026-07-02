@@ -1,0 +1,53 @@
+{
+  "scores": {
+    "correctness": 3,
+    "completeness": 2,
+    "efficiency": 3,
+    "robustness": 2,
+    "maintainability": 3,
+    "usability": 2,
+    "safety": 3
+  },
+  "checklist": [
+    {
+      "id": "P1",
+      "status": "pass",
+      "evidence": "init-task/SKILL.md:73-79 で technical-proposal に success-criteria.md, requirements.md を設計。目的と成功条件の定義導線がある"
+    },
+    {
+      "id": "P2",
+      "status": "partial",
+      "evidence": "docs構造に選択肢比較セクションの明示的定義なし。constraints.md + requirements.md から導出可能だが、SKILL.mdテンプレに「選択肢を列挙・比較する」手順がない"
+    },
+    {
+      "id": "P3",
+      "status": "partial",
+      "evidence": "team-roster.json に risk_reviewer あり。ただし SKILL.md テンプレに「リスク分析セクションを必ず含める」の指示がなく、risk_reviewer の呼び出しタイミングも不明確"
+    },
+    {
+      "id": "P4",
+      "status": "partial",
+      "evidence": "SKILL.md テンプレに「次アクション(担当/期限/成果物)」セクションの指示がない。plan.md はあるが Phase 計画であり提案書内のロードマップとは異なる"
+    }
+  ],
+  "checklist_grade": "D",
+  "metrics": {
+    "manifest_fill_rate": 1.0,
+    "turns": "unknown",
+    "retries": "unknown"
+  },
+  "evidence_files": [
+    ".claude/skills/init-task/SKILL.md",
+    ".claude/skills/run-phase/SKILL.md",
+    "templates/team-roster.json",
+    "templates/agents/business_analyst.md",
+    "templates/agents/risk_reviewer.md",
+    "templates/agents/cost_modeler.md",
+    ".claude/agents/builder.md",
+    ".claude/agents/validator.md",
+    "eval/scenarios/T3_proposal/checklist.json",
+    "eval/scenarios/T3_proposal/expected_manifest.json",
+    "README.md"
+  ],
+  "notes": "docs構造設計(technical-proposal)は整っており correctness は decent。しかし SKILL.md テンプレが汎用的すぎ、提案書固有の必須セクション（選択肢比較、リスク対策、次アクション）の生成指示がない。専門家エージェント(business_analyst, risk_reviewer, cost_modeler)は揃っているが呼び出しタイミングが曖昧。checklist_grade D により completeness/usability に制約。research_report よりはdocs構造が合っている分、correctness は少し高い。"
+}

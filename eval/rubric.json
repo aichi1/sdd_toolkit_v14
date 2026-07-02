@@ -1,0 +1,52 @@
+{
+  "version": "1.0",
+  "scale": {
+    "min": 0,
+    "max": 5
+  },
+  "axes": [
+    {
+      "key": "correctness",
+      "label": "Correctness",
+      "description": "必須成果物が揃い、整合している"
+    },
+    {
+      "key": "completeness",
+      "label": "Completeness",
+      "description": "要件/制約/成功条件/非目的などの抜けが少ない"
+    },
+    {
+      "key": "efficiency",
+      "label": "Efficiency",
+      "description": "手数・やり直しが少なく進められる"
+    },
+    {
+      "key": "robustness",
+      "label": "Robustness",
+      "description": "入力ゆらぎでも破綻しにくい（manifest漏れ等）"
+    },
+    {
+      "key": "maintainability",
+      "label": "Maintainability",
+      "description": "更新しやすい構造（rules肥大化/矛盾が少ない）"
+    },
+    {
+      "key": "usability",
+      "label": "Usability",
+      "description": "人が迷いにくい導線（README/命名/説明）"
+    },
+    {
+      "key": "safety",
+      "label": "Safety",
+      "description": "秘密情報/危険操作/権限の最小化が意識されている"
+    }
+  ],
+  "overall": {
+    "method": "mean_of_scenarios",
+    "scenario_weights": {
+      "T1_research": 1.0,
+      "T2_implement": 1.0,
+      "T3_proposal": 1.0
+    }
+  }
+}

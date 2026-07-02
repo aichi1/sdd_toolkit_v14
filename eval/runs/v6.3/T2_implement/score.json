@@ -1,0 +1,49 @@
+{
+  "scores": {
+    "correctness": 4,
+    "completeness": 4,
+    "efficiency": 3,
+    "robustness": 4,
+    "maintainability": 3,
+    "usability": 3,
+    "safety": 3
+  },
+  "checklist": [
+    {
+      "id": "I1",
+      "status": "pass",
+      "evidence": "templates/skills/small_implementation.md README必須。validate-outputs.py が README.md 存在を自動チェック（check_category_required_sections）。Validator 全項目検証義務"
+    },
+    {
+      "id": "I2",
+      "status": "pass",
+      "evidence": "templates/skills/small_implementation.md エラーハンドリング指示。Validator Quality Criteria「入力エラーや例外の扱いがコード内で実装」を必ず検証"
+    },
+    {
+      "id": "I3",
+      "status": "pass",
+      "evidence": "templates/skills/small_implementation.md tests/必須。validate-outputs.py が tests/ 存在を自動チェック。Validator Quality Criteria「最低1つの自動テスト」を必ず検証"
+    },
+    {
+      "id": "I4",
+      "status": "pass",
+      "evidence": "templates/skills/small_implementation.md モジュール分割指示。validate-outputs.py が src/ 存在を自動チェック。Validator Quality Criteria「コードがモジュール分割」を必ず検証"
+    }
+  ],
+  "checklist_grade": "A",
+  "metrics": {
+    "manifest_fill_rate": 1.0,
+    "turns": "unknown",
+    "retries": "unknown"
+  },
+  "evidence_files": [
+    "scripts/validate-outputs.py",
+    ".claude/skills/run-phase/SKILL.md",
+    ".claude/agents/validator.md",
+    "templates/skills/small_implementation.md",
+    ".claude/skills/init-task/SKILL.md",
+    "templates/team-roster.json",
+    "README.md"
+  ],
+  "notes": "v6.2→v6.3: correctness 3→4, robustness 3→4。T2 は validate-outputs.py の恩恵が最も大きいシナリオ。src/, tests/, README.md のディレクトリ/ファイル存在を自動チェックするため、実装系タスクの最低品質が構造的に保証される。robustness も +1: プリチェックが Builder の出力ゆらぎ（ファイル忘れ等）を自動で捕捉する。"
+}

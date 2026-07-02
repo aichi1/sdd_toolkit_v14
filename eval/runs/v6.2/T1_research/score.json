@@ -1,0 +1,50 @@
+{
+  "scores": {
+    "correctness": 3,
+    "completeness": 4,
+    "efficiency": 3,
+    "robustness": 3,
+    "maintainability": 3,
+    "usability": 4,
+    "safety": 3
+  },
+  "checklist": [
+    {
+      "id": "R1",
+      "status": "pass",
+      "evidence": "templates/skills/research_report.md 必須セクション1「TL;DR / エグゼクティブサマリー（冒頭に配置、3-5行で結論を要約）」。Quality Criteria「TL;DR が冒頭にあり、結論を読むだけで要点が分かる」"
+    },
+    {
+      "id": "R2",
+      "status": "pass",
+      "evidence": "templates/skills/research_report.md 必須セクション2「比較軸の定義と選定理由（なぜこの軸で比較するのか）」。Quality Criteria「比較軸が明確に定義され、選定理由が説明されている」"
+    },
+    {
+      "id": "R3",
+      "status": "pass",
+      "evidence": "templates/skills/research_report.md 必須セクション7「出典・参考文献（URLと取得日を含む）」。Quality Criteria「全データに出典が明記」。Procedure Step 9 で citations_researcher 呼び出し指示あり"
+    },
+    {
+      "id": "R4",
+      "status": "pass",
+      "evidence": "templates/skills/research_report.md 必須セクション5「不確実性・留意点（データの限界、前提条件、注意事項）」。Procedure Step 6 で risk_reviewer 呼び出し指示あり"
+    }
+  ],
+  "checklist_grade": "A",
+  "metrics": {
+    "manifest_fill_rate": 1.0,
+    "turns": "unknown",
+    "retries": "unknown"
+  },
+  "evidence_files": [
+    "templates/skills/research_report.md",
+    ".claude/skills/init-task/SKILL.md",
+    ".claude/skills/run-phase/SKILL.md",
+    ".claude/rules/quality-gates.md",
+    "templates/team-roster.json",
+    ".claude/agents/builder.md",
+    ".claude/agents/validator.md",
+    "README.md"
+  ],
+  "notes": "v6.1→v6.2: カテゴリ別テンプレ追加により全チェックリスト項目が Pass 化。correctness は変更なし（docs構造自体は既に設計済みだったため）。completeness/usability が大きく改善。テンプレの Quality Criteria が Validator の検証基準として直接使えるため robustness も向上。efficiency は変化なし（手順の数が増えた分の複雑化と、迷いの減少が相殺）。"
+}

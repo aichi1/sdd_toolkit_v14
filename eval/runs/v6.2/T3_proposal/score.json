@@ -1,0 +1,49 @@
+{
+  "scores": {
+    "correctness": 3,
+    "completeness": 4,
+    "efficiency": 3,
+    "robustness": 3,
+    "maintainability": 3,
+    "usability": 4,
+    "safety": 3
+  },
+  "checklist": [
+    {
+      "id": "P1",
+      "status": "pass",
+      "evidence": "templates/skills/internal_proposal.md 必須セクション1「目的と成功条件（何を達成するか、どうなれば成功か）」。Quality Criteria「目的と成功条件が冒頭で定義されている」"
+    },
+    {
+      "id": "P2",
+      "status": "pass",
+      "evidence": "templates/skills/internal_proposal.md 必須セクション3「選択肢比較（最低2案。メリット・デメリット・コスト概算を対比）」。Quality Criteria「選択肢が最低2案あり」。Examples に比較表テンプレあり"
+    },
+    {
+      "id": "P3",
+      "status": "pass",
+      "evidence": "templates/skills/internal_proposal.md 必須セクション5「リスクと対策（主要リスク3つ以上、各に具体的対策）」。Procedure Step 6 で risk_reviewer 呼び出し"
+    },
+    {
+      "id": "P4",
+      "status": "pass",
+      "evidence": "templates/skills/internal_proposal.md 必須セクション6「ロードマップ / 次アクション（各アクションに担当・期限・成果物）」。Examples にアクション表テンプレあり"
+    }
+  ],
+  "checklist_grade": "A",
+  "metrics": {
+    "manifest_fill_rate": 1.0,
+    "turns": "unknown",
+    "retries": "unknown"
+  },
+  "evidence_files": [
+    "templates/skills/internal_proposal.md",
+    ".claude/skills/init-task/SKILL.md",
+    ".claude/skills/run-phase/SKILL.md",
+    "templates/team-roster.json",
+    ".claude/agents/builder.md",
+    ".claude/agents/validator.md",
+    "README.md"
+  ],
+  "notes": "v6.1→v6.2: checklist_grade D→A。全4項目が Pass 化。特に P2(選択肢比較)と P4(次アクション)はテンプレの Examples にMarkdown表テンプレがあるため、Builder が迷わず生成できる。correctness は3（テンプレが正しく適用されるかは実行時依存）。v6.1 で既に成功条件(success-criteria.md)の docs 構造があったため、correctness の上昇幅は小さい。"
+}
