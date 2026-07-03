@@ -615,7 +615,7 @@ async def _invoke_specialist(
         return []
 
     # --- Real mode (SDD_RUN_REAL_VERIFY=1) ---
-    from agents.definitions import SPECIALIST_TOOLS
+    from agents.definitions import SPECIALIST_SANDBOX_TOOL, SPECIALIST_TOOLS
     from harness.hooks import make_hooks
 
     tools = SPECIALIST_TOOLS.get(specialist_name, ["Read"])  # FR-3.3: no Task
@@ -625,6 +625,18 @@ async def _invoke_specialist(
     cwd = worktree_path or (
         str(Path(artifact_ref).parent) if artifact_ref else "."
     )
+
+    # Isolation loop: a specialist may get a podman-backed MCP tool for real code
+    # execution (e.g. the tester's run_tests).  Bind it to THIS worktree (factory
+    # closure — verify runs specialists concurrently) and extend the allow-list.
+    allowed = list(tools)
+    mcp_servers: dict | None = None
+    sandbox_tool = SPECIALIST_SANDBOX_TOOL.get(specialist_name)
+    if sandbox_tool:
+        from mcp_servers.sandbox_server import make_sandbox_server
+
+        mcp_servers = {"sandbox": make_sandbox_server(cwd)}
+        allowed = allowed + [sandbox_tool]  # tool runs IN podman, not host Bash
 
     # T-2: CONTENT comes from a role-definition markdown file (第6条 reuse),
     # loaded at runtime; the FINDING: CONTRACT is owned by this module and
@@ -658,12 +670,14 @@ async def _invoke_specialist(
     # prevents approval flooding (plan §7 intent) without disabling permissions.
     options = ClaudeAgentOptions(
         cwd=cwd,
-        allowed_tools=tools,
+        allowed_tools=allowed,
         system_prompt=system_prompt,
         max_turns=MAX_TURNS,
         # F-7: allowed_tools on the options is advisory; enforce the specialist's
-        # tool set at the hook layer so it cannot invoke Bash/Glob/etc.
-        hooks=make_hooks(allowed_tools=tools),
+        # tool set (incl. the sandbox tool) at the hook layer so it cannot invoke
+        # Bash/Glob/etc.  The sandbox tool is allowed; host Bash stays denied.
+        hooks=make_hooks(allowed_tools=allowed),
+        **({"mcp_servers": mcp_servers} if mcp_servers else {}),
     )
 
     try:
@@ -686,8 +700,8 @@ async def _invoke_specialist(
 # CWE/quality concern each specialist focuses on (used in the real-mode prompt).
 _SPECIALIST_CONCERN: dict[str, str] = {
     "validator": "spec/acceptance-criteria mismatches and missing deliverables",
-    "tester": "missing tests and untested error paths (read-only inspection; "
-    "test execution is deferred to a future podman-backed tool — F-2)",
+    "tester": "missing tests, untested error paths, and failing tests (run the "
+    "suite via the run_tests tool — it executes pytest inside the podman sandbox)",
     "reviewer": "design, module boundaries, and maintainability problems",
     "security": "security vulnerabilities (injection, secrets, unsafe deserialization)",
 }

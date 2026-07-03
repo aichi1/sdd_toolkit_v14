@@ -83,8 +83,9 @@ g = build_graph()   # state.db に永続化、interrupt で停止 → /review or
 - **認証**: `ANTHROPIC_API_KEY` 未設定なら Claude Code のログイン（Pro/Max サブスク）を流用（課金は API でなくサブスク枠）。設定されていると API 従量課金になるので注意。
 - **二層防御（第4/5条）は実モードにも配線済み**: すべての実エージェント呼び出し（builder / 4専門家）に
   `harness.hooks.make_hooks()` の PreToolUse ガード（禁止操作の拒否＋安全な読取ツールの自動承認＋監査ログ）が
-  常時適用される。`permission_mode="bypassPermissions"` はコードに存在しない。tester は当面 `Read`+`Grep` の
-  読取専用（Bash はハード境界=podman 未経由のため除去。実テスト実行は将来 `run_in_sandbox` 経由の専用ツールで再導入）。
+  常時適用される。`permission_mode="bypassPermissions"` はコードに存在しない。tester はホスト `Bash` を持たず、
+  テスト実行は **podman サンドボックス経由の `run_tests` ツール**（`mcp_servers/sandbox_server.py`）で行う
+  ＝コード実行はハード境界（第4/5条）を通り、ホストでは走らない。
 - **スモーク**: `python3 -m harness.smoke_real_sdk` で最小 query と総コストを表示（手動 opt-in）。
   実 verify を回す際は監査ログ（`SDD_AUDIT_LOG`、既定 `logs/audit.jsonl`）に専門家のツール呼び出しが記録される。
 - 既定（env gate 未設定）ではオフライン stub のまま。`pytest tests/ -q` は実 API 0 で全 green（474 tests）。
@@ -98,12 +99,16 @@ g = build_graph()   # state.db に永続化、interrupt で停止 → /review or
 | 専門家 | 担当（この観点だけ見る） | 指摘しない（他の領分） | ツール |
 |---|---|---|---|
 | validator | 仕様/受入基準との一致・成果物欠落・ドリフト | 設計/脆弱性/テスト網羅 | Read, Grep |
-| tester | テストの存在・網羅・未検証パス（**実行しない**） | 脆弱性/設計/仕様一致 | Read, Grep |
+| tester | テストの存在・網羅・未検証パス＋**サンドボックスで実行** | 脆弱性/設計/仕様一致 | Read, Grep, run_tests(podman) |
 | reviewer | 設計・境界・保守性 | 脆弱性/テスト/仕様一致 | Read, Grep |
 | security | 脆弱性・秘密情報・危険操作（CWE/OWASP, 第10条） | 設計/テスト/仕様一致 | Read, Grep |
 
 > frontmatter の `tools:` は無視され、許可ツールは `SPECIALIST_TOOLS` のみが決める（F-2, 第4/5条）。
 > 採点の重みは `eval/rubric.json` の `weights`（severity 別）で調整でき、コードにハードコードしない。
+> tester の `run_tests` は `run_in_sandbox`（第4条）を呼ぶ。**pytest を実行するには python+pytest 入りの
+> サンドボックスイメージ**が必要（`SDD_SANDBOX_IMAGE` で指定。例:
+> `printf 'FROM docker.io/library/python:3.11-slim\nRUN pip install pytest\n' | podman build -t localhost/sdd-runner-py:latest -`）。
+> podman/イメージ不在時は `SANDBOX_UNAVAILABLE` を返し、ホストでは決して実行しない（NFR-3）。
 
 ### セキュリティ修正履歴
 - **2026-07-03 防御境界配線（F-1〜F-6）**: 実モード配線（d567189）で verify/builder 実行経路が第4/5条の

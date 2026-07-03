@@ -1,5 +1,13 @@
 # Changelog
 
+## 2026-07-03 — 隔離ループを閉じる（tester の podman テスト実行）
+- **サンドボックス実行の配線**: 実装・テスト済みだが未使用だった `harness.sandbox.run_in_sandbox` を、
+  in-process MCP ツール `run_tests`（`mcp_servers/sandbox_server.py`）として verify の tester に配線。
+  テスト実行が **podman（--network=none・使い捨て）＝第4/5条のハード境界**を通るようになった（ホスト実行なし）。
+  tester は `Read`/`Grep`＋`mcp__sandbox__run_tests`。F-7 フックがこのツールを許可し `Bash`/`Glob` は拒否継続。
+  podman/イメージ不在時は `SANDBOX_UNAVAILABLE` を返し、ホストでは実行しない（NFR-3）。
+  実 pytest には python+pytest 入りイメージ（`SDD_SANDBOX_IMAGE`）が必要。tester 定義のドリフトも修正。
+
 ## 2026-07-03 — 防御境界修正 + ベースライン凍結（post-v14）
 - **ベースライン凍結（T-1）**: v12 資産の装填（専門家プロンプトのファイルロード + eval_suite の
   severity 化）に着手する直前を `git tag v14-pre-loading`（commit `538f1e6`）で凍結。A/B 比較の対照群。

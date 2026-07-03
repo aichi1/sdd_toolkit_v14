@@ -61,8 +61,18 @@ BUILDER_TOOLS: list[str] = ["Read", "Write", "Edit", "Bash", "Grep"]
 SPECIALIST_TOOLS: dict[str, list[str]] = {
     "reviewer":  ["Read", "Grep"],
     "security":  ["Read", "Grep"],
-    "tester":    ["Read", "Grep"],   # F-2: Bash removed (sandbox not yet wired)
+    "tester":    ["Read", "Grep"],   # base read-only tools; test EXECUTION is the
+                                     # sandbox MCP tool below (not host Bash)
     "validator": ["Read", "Grep"],   # S-1 Phase 5: validator reads artifacts only
+}
+
+# Isolation loop: specialists that get a podman-backed MCP tool for real code
+# execution (the built-but-formerly-unwired harness.sandbox.run_in_sandbox).  The
+# tester runs the suite via mcp__sandbox__run_tests — inside podman (第4/5条 hard
+# boundary), never host Bash.  graph.nodes._invoke_specialist attaches the server
+# and extends BOTH allowed_tools and the F-7 hook allow-list with this tool name.
+SPECIALIST_SANDBOX_TOOL: dict[str, str] = {
+    "tester": "mcp__sandbox__run_tests",
 }
 
 
@@ -158,16 +168,22 @@ def build_options(
         ),
 
         # ---- tester ----------------------------------------------------------
-        # Read + Bash only. No Task (FR-3.3). No Write/Edit (plan §6 specialist rule).
+        # Read + Grep + the podman-backed run_tests MCP tool.  NO host Bash
+        # (F-2/F-7): test EXECUTION goes through the sandbox (第4/5条), not the
+        # host.  No Task (FR-3.3). No Write/Edit (plan §6 specialist rule).
         "tester": AgentDefinition(
             description=(
-                "Runs test suites on build artifacts. "
-                "Read + Bash only: no Write, Edit, or Task (FR-3.3)."
+                "Inspects and runs tests on build artifacts. Read + Grep for "
+                "static inspection; executes the suite via the sandboxed "
+                "mcp__sandbox__run_tests tool (podman, no host Bash). "
+                "No Write, Edit, or Task (FR-3.3)."
             ),
             prompt=(
-                "You are a test runner for sdd_toolkit_v14. "
-                "Execute test suites and report pass/fail results with error details. "
-                "Do NOT write new test files or modify existing ones."
+                "You are the tester for sdd_toolkit_v14. Inspect tests statically "
+                "and, when tests exist, EXECUTE them via the run_tests tool, which "
+                "runs pytest inside a network-isolated podman sandbox. Report "
+                "pass/fail with error details. If the sandbox is unavailable, say "
+                "so — never assume tests pass. Do NOT write or modify files."
             ),
             tools=SPECIALIST_TOOLS["tester"],
         ),
