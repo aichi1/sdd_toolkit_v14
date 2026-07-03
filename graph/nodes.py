@@ -661,7 +661,9 @@ async def _invoke_specialist(
         allowed_tools=tools,
         system_prompt=system_prompt,
         max_turns=MAX_TURNS,
-        hooks=make_hooks(),
+        # F-7: allowed_tools on the options is advisory; enforce the specialist's
+        # tool set at the hook layer so it cannot invoke Bash/Glob/etc.
+        hooks=make_hooks(allowed_tools=tools),
     )
 
     try:

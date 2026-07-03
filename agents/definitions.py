@@ -214,7 +214,9 @@ def build_options(
     if hooks is None:
         from harness.hooks import make_hooks
 
-        hooks = make_hooks()
+        # F-7: enforce the builder's allow-list (BUILDER_TOOLS) at the hook layer
+        # too — the SDK's allowed_tools is advisory, not a hard whitelist.
+        hooks = make_hooks(allowed_tools=BUILDER_TOOLS)
     kwargs["hooks"] = hooks
 
     return ClaudeAgentOptions(**kwargs)

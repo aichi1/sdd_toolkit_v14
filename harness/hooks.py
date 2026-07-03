@@ -27,6 +27,7 @@ from __future__ import annotations
 import json
 import os
 import re
+from collections.abc import Iterable
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -201,7 +202,10 @@ def _append_audit_log(
 # Hook callback factories
 # ---------------------------------------------------------------------------
 
-def create_pre_tool_use_hook(audit_log_path: str = _DEFAULT_AUDIT_LOG):
+def create_pre_tool_use_hook(
+    audit_log_path: str = _DEFAULT_AUDIT_LOG,
+    allowed_tools: "Iterable[str] | None" = None,
+):
     """
     Return an async PreToolUse hook callback.
 
@@ -209,17 +213,31 @@ def create_pre_tool_use_hook(audit_log_path: str = _DEFAULT_AUDIT_LOG):
       1. Appends every tool call to the audit log.
       2. Returns ``permissionDecision: "deny"`` for calls that match the
          第5条 deny-list (is_blocked returns True).
-      3. Returns ``permissionDecision: "allow"`` for SAFE_READONLY_TOOLS to
+      3. (F-7) When ``allowed_tools`` is given, returns ``deny`` for any tool NOT
+         in that set — enforcing the agent's allow-list at the hook layer.
+      4. Returns ``permissionDecision: "allow"`` for SAFE_READONLY_TOOLS to
          avoid approval flooding (plan §7).
-      4. Returns an empty dict for all other calls, deferring to the SDK's
+      5. Returns an empty dict for all other calls, deferring to the SDK's
          own permission rules.
+
+    F-7 rationale: ``ClaudeAgentOptions(allowed_tools=…)`` is ADVISORY, not a hard
+    whitelist — a real-API smoke showed a Read/Grep-only specialist still invoking
+    Bash and Glob.  So the allow-list must be enforced HERE (the real 第4/5条
+    boundary), exactly like the deny-list.  ``allowed_tools=None`` keeps the prior
+    behaviour (no allow-list enforcement) for full backward compatibility.
 
     Args:
         audit_log_path: Path to the JSONL audit log file.
+        allowed_tools:  The only tools this agent may use.  None → no allow-list
+                        enforcement (legacy behaviour).
 
     Returns:
         Async callback compatible with the HookCallback type alias.
     """
+    allow_set: frozenset[str] | None = (
+        frozenset(allowed_tools) if allowed_tools is not None else None
+    )
+
     async def pre_tool_use_callback(
         hook_input: Any,
         session_id: str | None,
@@ -232,7 +250,8 @@ def create_pre_tool_use_hook(audit_log_path: str = _DEFAULT_AUDIT_LOG):
         # Step 1: Audit-log every call (before decision, so even blocked calls appear)
         _append_audit_log(tool_name, tool_input, tool_use_id, audit_log_path)
 
-        # Step 2: Check deny-list (第5条 ソフト境界)
+        # Step 2: Check deny-list (第5条 ソフト境界) — highest priority, even for
+        # allow-listed tools (e.g. a builder that holds Bash still can't rm -rf).
         blocked, reason = is_blocked(tool_name, tool_input)
         if blocked:
             return {
@@ -243,7 +262,22 @@ def create_pre_tool_use_hook(audit_log_path: str = _DEFAULT_AUDIT_LOG):
                 }
             }
 
-        # Step 3: Auto-approve safe read-only tools (avoid approval flooding)
+        # Step 3 (F-7): enforce the agent's allow-list.  A tool outside the set is
+        # denied BEFORE the SAFE_READONLY auto-approve, so e.g. Glob (safe-readonly)
+        # is still denied for a specialist whose allow-list is only Read/Grep.
+        if allow_set is not None and tool_name not in allow_set:
+            return {
+                "hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "permissionDecision": "deny",
+                    "permissionDecisionReason": (
+                        f"tool '{tool_name}' is not in this agent's allow-list "
+                        f"({sorted(allow_set)}) — 第4/5条 (F-7)"
+                    ),
+                }
+            }
+
+        # Step 4: Auto-approve safe read-only tools (avoid approval flooding)
         if tool_name in SAFE_READONLY_TOOLS:
             return {
                 "hookSpecificOutput": {
@@ -252,7 +286,7 @@ def create_pre_tool_use_hook(audit_log_path: str = _DEFAULT_AUDIT_LOG):
                 }
             }
 
-        # Step 4: Defer to SDK permission rules for everything else
+        # Step 5: Defer to SDK permission rules for everything else
         return {}
 
     return pre_tool_use_callback
@@ -297,18 +331,23 @@ def create_subagent_stop_hook(audit_log_path: str = _DEFAULT_AUDIT_LOG):
 
 def make_hooks(
     audit_log_path: str | None = None,
+    allowed_tools: "Iterable[str] | None" = None,
 ) -> dict[str, list[HookMatcher]]:
     """
     Build the hooks dict for ``ClaudeAgentOptions(hooks=make_hooks())``.
 
     第5条 ソフト境界:
-      PreToolUse  → blocks dangerous operations + auto-approves safe read-only
-                    tools + appends every call to audit log.
+      PreToolUse  → blocks dangerous operations + (F-7) enforces the agent's
+                    allow-list + auto-approves safe read-only tools + audits.
       SubagentStop → logs subagent completion (stub; no execution intervention).
 
     Args:
         audit_log_path: Override the audit log path (default: SDD_AUDIT_LOG env
                         var or ``logs/audit.jsonl`` in the project root).
+        allowed_tools:  F-7 — the ONLY tools this agent may use.  Any tool outside
+                        the set is denied at the hook layer (``allowed_tools`` on
+                        ClaudeAgentOptions is advisory, not a hard whitelist).
+                        None → no allow-list enforcement (legacy behaviour).
 
     Returns:
         Dict mapping HookEvent strings to lists of HookMatcher.
@@ -316,9 +355,9 @@ def make_hooks(
     Usage::
 
         from harness.hooks import make_hooks
-        from agents.definitions import build_options
+        from agents.definitions import build_options, BUILDER_TOOLS
 
-        options = build_options(hooks=make_hooks())
+        options = build_options(hooks=make_hooks(allowed_tools=BUILDER_TOOLS))
     """
     log_path = audit_log_path or _DEFAULT_AUDIT_LOG
 
@@ -326,7 +365,7 @@ def make_hooks(
         "PreToolUse": [
             HookMatcher(
                 matcher=None,  # match ALL tools — no tool is exempt from audit
-                hooks=[create_pre_tool_use_hook(log_path)],
+                hooks=[create_pre_tool_use_hook(log_path, allowed_tools=allowed_tools)],
             )
         ],
         "SubagentStop": [
