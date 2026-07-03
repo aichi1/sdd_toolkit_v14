@@ -223,19 +223,26 @@ async def _run_query(prompt: str, options) -> tuple[str, object | None]:
     by the opt-in smoke script and real runs.
     """
     text_parts: list[str] = []
+    result_text: str | None = None
     result_msg = None
     async for msg in query(prompt=prompt, options=options):
         if hasattr(msg, "total_cost_usd"):
             result_msg = msg
-            # ResultMessage may also carry the final text in .result
-            if getattr(msg, "result", None):
-                text_parts.append(str(msg.result))
+            # ResultMessage.result carries the SAME final text as the last
+            # AssistantMessage — keep it only as a FALLBACK, never in addition,
+            # or every finding is counted twice (real-API duplication bug).
+            r = getattr(msg, "result", None)
+            if r:
+                result_text = str(r)
         elif hasattr(msg, "content"):
             for block in (msg.content or []):
                 block_text = getattr(block, "text", None)
                 if block_text:
                     text_parts.append(str(block_text))
-    return "\n".join(text_parts), result_msg
+    # Prefer the streamed assistant text; fall back to ResultMessage.result only
+    # when no assistant text was captured (avoids double-counting the answer).
+    text = "\n".join(text_parts) if text_parts else (result_text or "")
+    return text, result_msg
 
 
 # ---------------------------------------------------------------------------

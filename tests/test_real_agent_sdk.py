@@ -252,3 +252,43 @@ class TestEvalCostAggregation:
         ]
         assert rows[-1]["total_cost_usd"] == 0.0
         assert rows[-1]["tokens"] == {"input": 0, "output": 0}
+
+
+class TestRunQueryNoDuplication:
+    """Regression: _run_query must not count the final answer twice.
+
+    The SDK yields the final text in BOTH the last AssistantMessage.content and
+    ResultMessage.result.  A real-API smoke showed every FINDING: line (and even
+    a trivial 'OK') appearing twice because _run_query appended both.  The body
+    was never exercised by a test (mocks replace _run_query wholesale), so the
+    bug slipped through — this test covers the real body via a fake `query`.
+    """
+
+    def test_stream_and_result_not_double_counted(self, monkeypatch):
+        line = "FINDING: [HIGH] hardcoded secret (根拠: config.py:4)"
+        assistant = SimpleNamespace(content=[SimpleNamespace(text=line)])
+        result = SimpleNamespace(
+            total_cost_usd=0.01, result=line, usage=None, num_turns=1
+        )
+
+        async def fake_query(prompt, options):
+            for m in (assistant, result):
+                yield m
+
+        monkeypatch.setattr(nodes, "query", fake_query)
+        text, rmsg = asyncio.run(nodes._run_query(prompt="p", options=None))
+        assert text.count("FINDING:") == 1, f"finding duplicated: {text!r}"
+        assert rmsg is result  # ResultMessage still captured for cost
+
+    def test_result_only_used_as_fallback(self, monkeypatch):
+        """If no assistant text streamed, ResultMessage.result is used (not lost)."""
+        line = "FINDING: [MED] only-in-result (根拠: x)"
+        result = SimpleNamespace(total_cost_usd=0.0, result=line, usage=None)
+
+        async def fake_query(prompt, options):
+            yield result
+
+        monkeypatch.setattr(nodes, "query", fake_query)
+        text, rmsg = asyncio.run(nodes._run_query(prompt="p", options=None))
+        assert text.count("FINDING:") == 1
+        assert "only-in-result" in text
