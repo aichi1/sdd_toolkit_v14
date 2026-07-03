@@ -189,6 +189,42 @@ def record_agent_call(
     return record
 
 
+def record_eval_breakdown(
+    run_id: str,
+    role_counts: dict[str, int] | None = None,
+    severity_counts: dict[str, int] | None = None,
+    **metadata: Any,
+) -> dict:
+    """
+    Record an eval run's finding breakdown (T-4 / AC-4.3) to the store.
+
+    Written with record_type="eval_breakdown" so it is EXCLUDED from
+    sum_agent_costs() (which counts only record_type=="agent_call") and from the
+    eval-run cost records.  Captures per-role finding counts and the HIGH/MED/LOW
+    severity distribution so trends (e.g. new HIGH appearing) are auditable.
+
+    Args:
+        run_id:          Task ID tying this breakdown to a run.
+        role_counts:     {"security": 2, "validator": 1, ...}; None → {}.
+        severity_counts: {"HIGH": 1, "MED": 3, "LOW": 0}; None → zeros.
+        **metadata:      Extra fields (attempt, eval_score, …).
+
+    Returns:
+        The record dict that was written.
+    """
+    record: dict[str, Any] = {
+        "record_id": str(uuid.uuid4()),
+        "record_type": "eval_breakdown",
+        "run_id": run_id,
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        "role_counts": role_counts or {},
+        "severity_counts": severity_counts or {"HIGH": 0, "MED": 0, "LOW": 0},
+        **metadata,
+    }
+    _write_record(record)
+    return record
+
+
 def sum_agent_costs(
     run_id: str, store_path: Path | None = None
 ) -> tuple[float, dict[str, int]]:

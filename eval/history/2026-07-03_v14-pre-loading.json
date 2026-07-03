@@ -1,0 +1,47 @@
+{
+  "iteration_id": "v14-pre-loading",
+  "date": "2026-07-03",
+  "commit": "538f1e6",
+  "meta": {
+    "note": "装填前ベースライン。A/B 比較の対照群（control group）。v12 資産のv14装填（専門家プロンプトのファイルロード + eval_suite の severity 化）を行う直前の状態を凍結したもの。git tag 'v14-pre-loading' が同一コミット(538f1e6)を指す。このスナップショットは実 API を使わず、固定サンプル artifact に対する eval_suite.evaluate() の決定論スコアを記録する。装填後に同じ固定サンプルを再評価すれば severity 化の効果が数値で見える。専門家プロンプト品質(実モードの所見の質)のA/Bは実 API を要するため別途スモークで測る。"
+  },
+  "scenarios": {
+    "v14_pre_loading_fixed_artifact": {
+      "method": "harness.eval_suite.evaluate() on a fixed offline sample (deterministic, no API). threshold=0.4",
+      "cases": {
+        "clean_no_findings": {
+          "eval_score": 0.6,
+          "regressed": false,
+          "axis_scores": {
+            "correctness": 0.6,
+            "completeness": 0.6,
+            "efficiency": 0.6,
+            "robustness": 0.6,
+            "maintainability": 0.6,
+            "usability": 0.6,
+            "safety": 0.6
+          }
+        },
+        "two_plain_findings": {
+          "note": "severity-less findings as pre-loading specialists emit (['[validator] AC-2 not covered','[tester] no test for error path'])",
+          "eval_score": 0.5543,
+          "regressed": false,
+          "axis_scores": {
+            "correctness": 0.4,
+            "completeness": 0.6,
+            "efficiency": 0.6,
+            "robustness": 0.48,
+            "maintainability": 0.6,
+            "usability": 0.6,
+            "safety": 0.6
+          }
+        }
+      }
+    }
+  },
+  "overall": {
+    "method": "baseline-freeze (control group). Not a 7-axis self-assessment; this row records the eval_suite scoring behavior at the pre-loading commit so the loading's effect on scoring is measurable.",
+    "pre_loading_flat_scoring": true,
+    "severity_weighting": false
+  }
+}

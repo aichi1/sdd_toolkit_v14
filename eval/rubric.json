@@ -48,5 +48,15 @@
       "T2_implement": 1.0,
       "T3_proposal": 1.0
     }
+  },
+  "weights": {
+    "_comment": "T-4: severity-weighted eval_suite deductions (raw, out of scale.max). MED equals the pre-loading hardcoded constants so severity-less findings score identically (backward compatible). Edit here to tune scoring — treated as a spec change, not code.",
+    "verify_finding": {
+      "HIGH": { "correctness": 1.5, "robustness": 0.9 },
+      "MED":  { "correctness": 0.5, "robustness": 0.3 },
+      "LOW":  { "correctness": 0.2, "robustness": 0.1 }
+    },
+    "security_finding": { "safety": 1.5, "correctness": 0.5 },
+    "default_severity": "MED"
   }
 }

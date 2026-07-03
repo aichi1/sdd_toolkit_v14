@@ -1,5 +1,14 @@
 # Changelog
 
+## 2026-07-03 — 防御境界修正 + ベースライン凍結（post-v14）
+- **ベースライン凍結（T-1）**: v12 資産の装填（専門家プロンプトのファイルロード + eval_suite の
+  severity 化）に着手する直前を `git tag v14-pre-loading`（commit `538f1e6`）で凍結。A/B 比較の対照群。
+  装填前の決定論スコアは `eval/history/2026-07-03_v14-pre-loading.json`。
+- **防御境界配線（F-1〜F-6, commit `538f1e6`）**: verify/builder 実モードが第4/5条の二層防御を
+  バイパスしていたリグレッションを是正（hooks 全接続 / `bypassPermissions` 全廃 / tester の Bash 除去 /
+  専門家 cwd を worktree ルートに / docstring ドリフト解消 / 生成物の追跡除外）。セキュリティ修正。
+- **実 Agent SDK 配線（commit `d567189`）**: verify の4専門家・builder を実 Agent SDK で実行、実コスト計測を配線。
+
 ## v6.5 (2026-02-12) — Token Optimization
 - `.claude/rules/` を93%圧縮: 7ファイル 3,308行 → 5ファイル 222行
   - 核心ルールのみ残し、詳細は `docs/rules-reference/` に移動（自動注入されない）

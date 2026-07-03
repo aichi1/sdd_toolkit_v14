@@ -87,7 +87,23 @@ g = build_graph()   # state.db に永続化、interrupt で停止 → /review or
   読取専用（Bash はハード境界=podman 未経由のため除去。実テスト実行は将来 `run_in_sandbox` 経由の専用ツールで再導入）。
 - **スモーク**: `python3 -m harness.smoke_real_sdk` で最小 query と総コストを表示（手動 opt-in）。
   実 verify を回す際は監査ログ（`SDD_AUDIT_LOG`、既定 `logs/audit.jsonl`）に専門家のツール呼び出しが記録される。
-- 既定（env gate 未設定）ではオフライン stub のまま。`pytest tests/ -q` は実 API 0 で全 green（444 tests）。
+- 既定（env gate 未設定）ではオフライン stub のまま。`pytest tests/ -q` は実 API 0 で全 green（474 tests）。
+
+### 専門家の担当範囲（装填済み・関心の分離）
+各専門家の system prompt は `templates/agents/v14/*.md`（役割定義=コンテンツ）を実行時ロードし、
+`FINDING: [HIGH|MED|LOW] <説明> (根拠: …)` の出力契約（コード所有）を末尾に付加する。
+所見は severity・根拠つきで返り、`eval_suite` が **HIGH 1件でゲートを閉じる**（`build` へ差し戻し）。
+差し替えは `SDD_SPECIALIST_PROMPT_DIR` で可能。
+
+| 専門家 | 担当（この観点だけ見る） | 指摘しない（他の領分） | ツール |
+|---|---|---|---|
+| validator | 仕様/受入基準との一致・成果物欠落・ドリフト | 設計/脆弱性/テスト網羅 | Read, Grep |
+| tester | テストの存在・網羅・未検証パス（**実行しない**） | 脆弱性/設計/仕様一致 | Read, Grep |
+| reviewer | 設計・境界・保守性 | 脆弱性/テスト/仕様一致 | Read, Grep |
+| security | 脆弱性・秘密情報・危険操作（CWE/OWASP, 第10条） | 設計/テスト/仕様一致 | Read, Grep |
+
+> frontmatter の `tools:` は無視され、許可ツールは `SPECIALIST_TOOLS` のみが決める（F-2, 第4/5条）。
+> 採点の重みは `eval/rubric.json` の `weights`（severity 別）で調整でき、コードにハードコードしない。
 
 ### セキュリティ修正履歴
 - **2026-07-03 防御境界配線（F-1〜F-6）**: 実モード配線（d567189）で verify/builder 実行経路が第4/5条の

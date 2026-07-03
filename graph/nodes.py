@@ -104,6 +104,7 @@ from harness.eval_suite import (
 from harness.observability import (
     MAX_TURNS,
     record_agent_call,
+    record_eval_breakdown,
     record_run,
     sum_agent_costs,
 )
@@ -127,6 +128,24 @@ _SLICES_HEADER = "[TASK-SPECIFIC SLICES]"
 # ---------------------------------------------------------------------------
 
 _FINDING_PREFIX = "FINDING:"
+
+# Severity tokens recognised in the FINDING: contract (T-3).
+_SEVERITIES = ("HIGH", "MED", "LOW")
+_DEFAULT_SEVERITY = "MED"
+
+# Output CONTRACT (design principle 2): owned by code, appended to every
+# specialist system prompt (loaded content OR fallback).  _parse_findings depends
+# on this format, so it must NOT live in the editable role-definition files.
+_OUTPUT_CONTRACT = (
+    "\n\n## Output contract (MUST follow)\n"
+    "Report one finding per line, in exactly this form:\n"
+    "  FINDING: [HIGH|MED|LOW] <description> (根拠: <file path / location or "
+    "constitution article>)\n"
+    "- HIGH = release-blocking defect · MED = should fix · LOW = improvement.\n"
+    "- A finding without evidence (根拠) is invalid — always cite a path/line/article.\n"
+    "- Stay in your lane: do NOT report issues that belong to another reviewer.\n"
+    "- If you find no issues, output nothing."
+)
 
 
 def _parse_findings(text: str, role: str) -> list[str]:
@@ -556,6 +575,12 @@ async def _invoke_specialist(
                                  errors returns a single '[role] ERROR: …' finding
                                  so one failure never loses the other specialists'
                                  findings (asyncio.gather isolation).
+                                 The system prompt = role CONTENT loaded from a
+                                 markdown file (agents.prompts.load_specialist_prompt,
+                                 templates/agents/v14/*.md, 第6条) + the code-owned
+                                 output CONTRACT (_OUTPUT_CONTRACT, FINDING: format).
+                                 A missing role file falls back to a built-in
+                                 one-liner (a WARNING is logged) — never crashes.
 
       default (env var absent) →  stub mode: returns [] immediately, no API call.
 
@@ -594,20 +619,31 @@ async def _invoke_specialist(
         str(Path(artifact_ref).parent) if artifact_ref else "."
     )
 
-    concern = _SPECIALIST_CONCERN.get(
-        specialist_name, "quality issues in the artifact"
-    )
-    system_prompt = (
-        f"You are the {specialist_name} reviewer in an SDD verify step. "
-        f"Inspect the build artifact and surrounding files in the working "
-        f"directory for {concern}. Use only your read-only tools. "
-        f"Output one line per issue, each starting with 'FINDING:' followed by a "
-        f"concise description. If you find no issues, output nothing."
-    )
+    # T-2: CONTENT comes from a role-definition markdown file (第6条 reuse),
+    # loaded at runtime; the FINDING: CONTRACT is owned by this module and
+    # appended below.  Missing file → graceful fallback to the built-in one-liner
+    # (a WARNING is written to the audit log inside load_specialist_prompt).
+    from agents.prompts import load_specialist_prompt
+
+    loaded = load_specialist_prompt(specialist_name)
+    if loaded:
+        base_prompt = loaded
+    else:
+        concern = _SPECIALIST_CONCERN.get(
+            specialist_name, "quality issues in the artifact"
+        )
+        base_prompt = (
+            f"You are the {specialist_name} reviewer in an SDD verify step. "
+            f"Inspect the build artifact and surrounding files in the working "
+            f"directory for {concern}. Use only your read-only tools."
+        )
+    # CONTRACT (code-owned, always appended — even in fallback) so _parse_findings
+    # never depends on the content of the role files (design principle 2).
+    system_prompt = base_prompt + _OUTPUT_CONTRACT
     prompt = (
         f"Review the artifact for task '{task_id}'. "
         f"Primary artifact: {artifact_ref}. "
-        f"Report issues as 'FINDING:' lines per your instructions."
+        f"Report issues as 'FINDING:' lines per the output contract."
     )
     # F-1 (第5条): attach the PreToolUse guard (make_hooks) to EVERY real agent
     # invocation.  We do NOT force permission_mode to a bypass value (left at the
@@ -771,6 +807,17 @@ def eval_node(state: TaskState) -> Command:
         run_cost += slug_cost
         for k, v in slug_tokens.items():
             run_tokens[k] = run_tokens.get(k, 0) + v
+    # T-4 / AC-4.3: per-role finding counts + HIGH/MED/LOW distribution.  Written
+    # FIRST as a separate record_type="eval_breakdown" row (excluded from cost
+    # sums), so the run cost record below stays the terminal row (FR-4.2 invariant:
+    # the last observation for a run is its cost/token record).
+    record_eval_breakdown(
+        run_id=task_id,
+        role_counts=result.get("role_counts", {}),
+        severity_counts=result.get("severity_counts", {}),
+        attempt=attempt,
+        eval_score=eval_score,
+    )
     record_run(
         run_id=task_id,
         attempt=attempt,

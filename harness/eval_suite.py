@@ -48,6 +48,7 @@ MAX_EVAL_ATTEMPTS  — maximum eval→build retry cycles before forcing review.
 """
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Union
 
@@ -97,11 +98,21 @@ and can approve or reject.
 # ---------------------------------------------------------------------------
 
 _AXIS_BASE_RAW: float = 3.0          # raw per-axis base (out of rubric max=5.0)
-_DEDUCT_FINDING_CORRECTNESS: float = 0.5   # raw deduction per verify_finding
-_DEDUCT_FINDING_ROBUSTNESS: float = 0.3    # raw deduction per verify_finding
+# Legacy fallback constants — used only if eval/rubric.json has no "weights"
+# block.  MED in rubric.json is set equal to these so severity-less findings
+# (default MED) score identically to the pre-loading behaviour (T-4 backward compat).
+_DEDUCT_FINDING_CORRECTNESS: float = 0.5   # raw deduction per verify_finding (MED)
+_DEDUCT_FINDING_ROBUSTNESS: float = 0.3    # raw deduction per verify_finding (MED)
 _DEDUCT_SECURITY_SAFETY: float = 1.5       # raw deduction per security_finding
 _DEDUCT_SECURITY_CORRECTNESS: float = 0.5  # raw deduction per security_finding
 _BASELINE_TOLERANCE: float = 0.15          # regression tolerance vs stored baseline
+
+# T-3/T-4: severity + role parsing of finding strings.  The FINDING: format is
+# defined by graph/nodes.py `_OUTPUT_CONTRACT`; these consumer-side helpers mirror
+# it (kept here, not imported from nodes, to avoid a circular import).
+# Finding strings look like: "[role] [HIGH] <desc> (根拠: ...)".
+_SEVERITY_RE = re.compile(r"\[(HIGH|MED|LOW)\]")
+_ROLE_RE = re.compile(r"^\s*\[([^\]]+)\]")
 
 
 # ---------------------------------------------------------------------------
@@ -113,14 +124,85 @@ def _load_rubric() -> dict:
     return load_json(_RUBRIC_PATH)
 
 
+def _load_weights() -> dict:
+    """
+    Load severity deduction weights from eval/rubric.json ("weights" block).
+
+    第6条 / AC-4.2: weights live in rubric.json (data), not hardcoded in code,
+    so tuning scoring is a spec change.  Falls back to the legacy constants when
+    the block is absent (keeps an old rubric.json working).
+    """
+    weights = _load_rubric().get("weights")
+    if weights:
+        return weights
+    return {
+        "verify_finding": {
+            "HIGH": {
+                "correctness": _DEDUCT_FINDING_CORRECTNESS,
+                "robustness": _DEDUCT_FINDING_ROBUSTNESS,
+            },
+            "MED": {
+                "correctness": _DEDUCT_FINDING_CORRECTNESS,
+                "robustness": _DEDUCT_FINDING_ROBUSTNESS,
+            },
+            "LOW": {
+                "correctness": _DEDUCT_FINDING_CORRECTNESS,
+                "robustness": _DEDUCT_FINDING_ROBUSTNESS,
+            },
+        },
+        "security_finding": {
+            "safety": _DEDUCT_SECURITY_SAFETY,
+            "correctness": _DEDUCT_SECURITY_CORRECTNESS,
+        },
+        "default_severity": "MED",
+    }
+
+
+def _finding_severity(finding: str, default: str = "MED") -> str:
+    """Extract the [HIGH|MED|LOW] token from a finding string (default if absent)."""
+    m = _SEVERITY_RE.search(finding or "")
+    return m.group(1) if m else default
+
+
+def _finding_role(finding: str) -> str:
+    """Extract the leading [role] tag from a finding string ('unknown' if absent)."""
+    m = _ROLE_RE.match(finding or "")
+    if not m:
+        return "unknown"
+    role = m.group(1)
+    # Guard: a severity-first string (no role prefix) must not be read as a role.
+    return "unknown" if role in ("HIGH", "MED", "LOW") else role
+
+
+def _finding_breakdown(findings: list[str]) -> tuple[dict[str, int], dict[str, int]]:
+    """
+    Count verify findings by role and by severity (AC-4.3 metrics).
+
+    Returns:
+        (role_counts, severity_counts) — e.g. ({"security": 2}, {"HIGH":1,"MED":1,"LOW":0}).
+    """
+    default_sev = _load_weights().get("default_severity", "MED")
+    role_counts: dict[str, int] = {}
+    severity_counts: dict[str, int] = {"HIGH": 0, "MED": 0, "LOW": 0}
+    for f in findings:
+        role = _finding_role(f)
+        role_counts[role] = role_counts.get(role, 0) + 1
+        sev = _finding_severity(f, default_sev)
+        severity_counts[sev] = severity_counts.get(sev, 0) + 1
+    return role_counts, severity_counts
+
+
 def _compute_axis_scores(
     findings: list[str],
     security_findings: list[Finding],
 ) -> dict[str, float]:
     """
-    Compute per-axis normalized scores (0–1) from verify_findings and security findings.
+    Compute per-axis normalized scores (0–1), severity-weighted (T-4).
 
-    Reads 7 axis keys from eval/rubric.json (第6条: reuse, not reinvention).
+    Reads 7 axis keys and severity weights from eval/rubric.json (第6条: reuse).
+    Each verify finding deducts per its severity ([HIGH|MED|LOW]); a finding with
+    no severity token is treated as the rubric's default_severity (MED), which is
+    tuned to equal the pre-loading flat deduction → backward compatible.
     Normalization: raw / rubric["scale"]["max"].
 
     Returns:
@@ -129,29 +211,30 @@ def _compute_axis_scores(
     rubric = _load_rubric()
     scale_max: float = float(rubric["scale"]["max"])   # 5.0
     axes: list[str] = [a["key"] for a in rubric["axes"]]  # 7 keys
+    weights = _load_weights()
+    default_sev: str = weights.get("default_severity", "MED")
+    vf_w: dict = weights.get("verify_finding", {})
+    sf_w: dict = weights.get("security_finding", {})
 
     # Start at neutral base score
     raw: dict[str, float] = {ax: _AXIS_BASE_RAW for ax in axes}
 
-    # Deduct for functional verify_findings (correctness + robustness axes)
-    n_f = len(findings)
-    if n_f:
-        raw["correctness"] = max(
-            0.0, raw["correctness"] - n_f * _DEDUCT_FINDING_CORRECTNESS
-        )
-        raw["robustness"] = max(
-            0.0, raw["robustness"] - n_f * _DEDUCT_FINDING_ROBUSTNESS
-        )
+    # Deduct per verify finding, weighted by its severity.
+    for f in findings:
+        sev = _finding_severity(f, default_sev)
+        per_axis = vf_w.get(sev) or vf_w.get(default_sev, {})
+        for axis, dec in per_axis.items():
+            if axis in raw:
+                raw[axis] -= float(dec)
 
-    # Deduct for security findings (safety + correctness axes)
-    n_s = len(security_findings)
-    if n_s:
-        raw["safety"] = max(0.0, raw["safety"] - n_s * _DEDUCT_SECURITY_SAFETY)
-        raw["correctness"] = max(
-            0.0, raw["correctness"] - n_s * _DEDUCT_SECURITY_CORRECTNESS
-        )
+    # Deduct per security finding (safety + correctness axes).
+    for _ in security_findings:
+        for axis, dec in sf_w.items():
+            if axis in raw:
+                raw[axis] -= float(dec)
 
-    return {ax: round(raw[ax] / scale_max, 4) for ax in axes}
+    # Floor at 0 and normalize.
+    return {ax: round(max(0.0, raw[ax]) / scale_max, 4) for ax in axes}
 
 
 def _check_baseline_regression(current_score: float) -> bool:
@@ -262,9 +345,15 @@ def evaluate(
     # ── Overall score (reuses eval/aggregate.py mean(), 第6条) ──────────────
     eval_score: float = round(mean(list(axis_scores.values())), 4)
 
+    # ── Severity / role breakdown (T-4 / AC-4.3 metrics) ────────────────────
+    role_counts, severity_counts = _finding_breakdown(findings)
+
     # ── Regression detection ────────────────────────────────────────────────
+    # T-4: "any HIGH finding → regressed" GENERALISES the existing
+    # "any security finding → regressed" rule (do not duplicate — extend).
     regressed: bool = (
         bool(security_findings)                    # CWE/OWASP → always regressed
+        or severity_counts["HIGH"] > 0             # any HIGH verify finding → gate closes
         or eval_score < EVAL_SCORE_THRESHOLD       # numeric gate
         or _check_baseline_regression(eval_score)  # vs stored baseline
     )
@@ -274,4 +363,6 @@ def evaluate(
         "regressed": regressed,
         "axis_scores": axis_scores,
         "security_findings": security_findings,
+        "severity_counts": severity_counts,
+        "role_counts": role_counts,
     }

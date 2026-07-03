@@ -365,7 +365,9 @@ class TestEvalNodeObservability:
 
         records = read_observations(obs_path)
         assert len(records) >= 1
-        rec = records[0]
+        # eval_node now writes an eval_breakdown row too (T-4); the FR-4.2 cost
+        # record is the run record, uniquely identified by having no record_type.
+        rec = next(r for r in records if r.get("record_type") is None)
         assert "total_cost_usd" in rec, "FR-4.2: record must have total_cost_usd"
         assert "tokens" in rec, "FR-4.2: record must have tokens"
         assert "run_id" in rec, "record must have run_id"
