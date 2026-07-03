@@ -52,10 +52,11 @@ Phase 4 additions (T4.3):
                      of [] which was a no-op with operator.add.
 
 Phase 5 additions:
-  S-3 resolved     — _invoke_specialist real mode (SDD_RUN_REAL_VERIFY=1) now
-                     raises NotImplementedError("real specialist invocation not
-                     yet implemented — Phase 6") instead of silently returning [].
-                     Tests monkeypatch the seam so they are unaffected.
+  S-3 (historical) — _invoke_specialist once had a stub real mode that raised
+                     NotImplementedError.  post-v14 wiring replaced it: real mode
+                     (SDD_RUN_REAL_VERIFY=1) now runs the specialist via the Agent
+                     SDK, parses 'FINDING:' lines, records cost, isolates errors,
+                     and attaches make_hooks() (第5条).  Tests monkeypatch the seam.
 
 Phase 6 additions (T6.2 — this phase):
   eval_node        — Calls harness.eval_suite.evaluate() for regression detection
@@ -68,8 +69,9 @@ Phase 6 additions (T6.2 — this phase):
   Phase 4 Deferral 1 resolved:
                      verify is now wired into build_graph.py main topology:
                      spec_load → assemble_context → build → verify → eval → review.
-                     _invoke_specialist real mode still raises NotImplementedError
-                     (Phase 6 deferred real Agent SDK calls — stub is safe offline).
+                     (historical) real Agent SDK calls were deferred past Phase 6;
+                     they are now wired (see the post-v14 real-mode note above).
+                     Default (env gate unset) remains the offline stub — safe.
 
 Graph wiring note (Phase 6):
   Full topology:  spec_load → assemble_context → build → verify → eval → review
@@ -540,6 +542,7 @@ async def _invoke_specialist(
     specialist_name: str,
     artifact_ref: str,
     task_id: str,
+    worktree_path: str = "",
 ) -> list[str]:
     """
     Injectable seam: invokes a named specialist sub-agent and returns findings.
@@ -581,10 +584,15 @@ async def _invoke_specialist(
 
     # --- Real mode (SDD_RUN_REAL_VERIFY=1) ---
     from agents.definitions import SPECIALIST_TOOLS
+    from harness.hooks import make_hooks
 
     tools = SPECIALIST_TOOLS.get(specialist_name, ["Read"])  # FR-3.3: no Task
-    # cwd = the worktree that holds the artifact (第4条: run inside the worktree)
-    cwd = str(Path(artifact_ref).parent) if artifact_ref else "."
+    # cwd = the worktree ROOT (第4条: run inside the worktree). F-6: prefer the
+    # explicit worktree_path; fall back to the artifact's parent only when it is
+    # absent (an artifact may live in a subdirectory, so its parent ≠ root).
+    cwd = worktree_path or (
+        str(Path(artifact_ref).parent) if artifact_ref else "."
+    )
 
     concern = _SPECIALIST_CONCERN.get(
         specialist_name, "quality issues in the artifact"
@@ -601,12 +609,16 @@ async def _invoke_specialist(
         f"Primary artifact: {artifact_ref}. "
         f"Report issues as 'FINDING:' lines per your instructions."
     )
+    # F-1 (第5条): attach the PreToolUse guard (make_hooks) to EVERY real agent
+    # invocation.  We do NOT force permission_mode to a bypass value (left at the
+    # SDK default) — the SAFE_READONLY_TOOLS auto-approval inside make_hooks()
+    # prevents approval flooding (plan §7 intent) without disabling permissions.
     options = ClaudeAgentOptions(
         cwd=cwd,
         allowed_tools=tools,
         system_prompt=system_prompt,
         max_turns=MAX_TURNS,
-        permission_mode="bypassPermissions",
+        hooks=make_hooks(),
     )
 
     try:
@@ -629,7 +641,8 @@ async def _invoke_specialist(
 # CWE/quality concern each specialist focuses on (used in the real-mode prompt).
 _SPECIALIST_CONCERN: dict[str, str] = {
     "validator": "spec/acceptance-criteria mismatches and missing deliverables",
-    "tester": "missing tests, untested error paths, and failing behavior",
+    "tester": "missing tests and untested error paths (read-only inspection; "
+    "test execution is deferred to a future podman-backed tool — F-2)",
     "reviewer": "design, module boundaries, and maintainability problems",
     "security": "security vulnerabilities (injection, secrets, unsafe deserialization)",
 }
@@ -648,13 +661,14 @@ async def _run_verify_parallel(state: TaskState) -> list[str]:
     """
     artifact_ref = state.get("build_artifact_ref", "")
     task_id = state.get("task_id", "")
+    worktree_path = state.get("worktree_path", "")  # F-6: cwd = worktree root
 
     # Run all specialists concurrently (FR-3.2: parallel, not sequential)
     results = await asyncio.gather(
-        _invoke_specialist("validator", artifact_ref, task_id),
-        _invoke_specialist("tester", artifact_ref, task_id),
-        _invoke_specialist("reviewer", artifact_ref, task_id),
-        _invoke_specialist("security", artifact_ref, task_id),
+        _invoke_specialist("validator", artifact_ref, task_id, worktree_path),
+        _invoke_specialist("tester", artifact_ref, task_id, worktree_path),
+        _invoke_specialist("reviewer", artifact_ref, task_id, worktree_path),
+        _invoke_specialist("security", artifact_ref, task_id, worktree_path),
     )
 
     # Merge without overwrite: extend accumulates all findings (FR-3.2)
@@ -685,7 +699,8 @@ def verify(state: TaskState) -> dict:
     Phase 6 note (Deferral 1 resolved):
       verify is now wired into build_graph.py main topology.
       _invoke_specialist stub mode (no SDD_RUN_REAL_VERIFY) still returns [].
-      Real Agent SDK calls remain NotImplementedError (Phase 6 deferral maintained).
+      Real Agent SDK calls are wired (post-v14): SDD_RUN_REAL_VERIFY=1 runs the
+      4 specialists via the SDK under make_hooks() (第5条); default is the stub.
     """
     findings = asyncio.run(_run_verify_parallel(state))
     return {"verify_findings": findings}

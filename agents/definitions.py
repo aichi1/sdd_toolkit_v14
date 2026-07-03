@@ -49,10 +49,19 @@ BUILDER_TOOLS: list[str] = ["Read", "Write", "Edit", "Bash", "Grep"]
 # Specialists: read-only / limited. Task is NOT included anywhere (FR-3.3).
 # Plan §6 "Write/Edit は外す" applies HERE — specialists cannot modify files.
 # Phase 5 S-1: added "validator" (Read, Grep) — completes the 4 verify specialists.
+#
+# F-2 (第4/5条, defense-boundary fix 2026-07-03): tester's "Bash" was REMOVED.
+#   Rationale: a real-mode tester with Bash could execute host commands without
+#   passing the podman hard boundary (第5条 requires BOTH soft hooks AND the
+#   podman sandbox; Bash here only had the soft hook, not the sandbox).  案A
+#   (minimal & safe): tester is read-only (Read+Grep) — it can inspect for test
+#   presence/coverage but does not run code.  Real test EXECUTION will be
+#   re-introduced as a dedicated tool that calls harness.sandbox.run_in_sandbox
+#   (podman; no host fallback — NFR-3), in the phase that needs it (案B).
 SPECIALIST_TOOLS: dict[str, list[str]] = {
     "reviewer":  ["Read", "Grep"],
     "security":  ["Read", "Grep"],
-    "tester":    ["Read", "Bash"],
+    "tester":    ["Read", "Grep"],   # F-2: Bash removed (sandbox not yet wired)
     "validator": ["Read", "Grep"],   # S-1 Phase 5: validator reads artifacts only
 }
 
@@ -76,10 +85,12 @@ def build_options(
         mcp_servers:   MCP server configs.  Placeholder — wired in Phase 3
                        (context_server) and Phase 5 (constitution_server).
                        Pass None to omit (uses SDK default empty dict).
-        hooks:         Hook matchers for PreToolUse etc.  Placeholder — wired in
-                       Phase 4.  Design intent: PreToolUse hooks will auto-approve
-                       safe read-only tools (Read, Grep) to reduce approval flood
-                       when specialist agents run.  Pass None to omit.
+        hooks:         Hook matchers for PreToolUse etc.  F-3: ALWAYS applied —
+                       when None, defaults to harness.hooks.make_hooks() (第5条
+                       soft boundary).  The PreToolUse hook blocks dangerous ops
+                       and auto-approves safe read-only tools (Read, Grep) to
+                       avoid approval flooding.  Pass an explicit dict to override;
+                       there is no way to run the builder with hooks disabled.
 
     Returns:
         ClaudeAgentOptions with:
@@ -195,8 +206,15 @@ def build_options(
     if mcp_servers is not None:
         kwargs["mcp_servers"] = mcp_servers
 
-    # Phase 4: PreToolUse hooks for safe-tool auto-approval wired here
-    if hooks is not None:
-        kwargs["hooks"] = hooks
+    # F-3 (第5条): the PreToolUse guard is ALWAYS applied.  When no hooks are
+    # supplied we default to make_hooks() rather than leaving the builder
+    # unguarded — a real-mode builder holds Write/Edit/Bash and must be bounded
+    # by the same soft boundary as the specialists (there is deliberately no way
+    # to run the builder with hooks disabled).
+    if hooks is None:
+        from harness.hooks import make_hooks
+
+        hooks = make_hooks()
+    kwargs["hooks"] = hooks
 
     return ClaudeAgentOptions(**kwargs)

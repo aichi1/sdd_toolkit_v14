@@ -110,8 +110,12 @@ class TestSpecialistToolSets:
         assert set(SPECIALIST_TOOLS["security"]) == {"Read", "Grep"}
 
     def test_tester_tools_exact(self):
-        """tester: Read, Bash only."""
-        assert set(SPECIALIST_TOOLS["tester"]) == {"Read", "Bash"}
+        """tester: Read, Grep only (F-2: Bash removed — no host exec off-sandbox)."""
+        assert set(SPECIALIST_TOOLS["tester"]) == {"Read", "Grep"}
+
+    def test_tester_has_no_bash(self):
+        """F-2 (第4/5条): tester must not hold Bash until a podman-backed tool exists."""
+        assert "Bash" not in SPECIALIST_TOOLS["tester"]
 
     def test_validator_tools_exact(self):
         """validator: Read, Grep only (Phase 5 S-1)."""

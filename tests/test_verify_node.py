@@ -66,7 +66,7 @@ class TestVerifyNodeParallelMerge:
         """
         calls: list[str] = []
 
-        async def mock_specialist(name: str, artifact_ref: str, task_id: str) -> list[str]:
+        async def mock_specialist(name: str, artifact_ref: str, task_id: str, worktree_path: str = "") -> list[str]:
             calls.append(name)
             return [f"{name}:finding"]
 
@@ -83,7 +83,7 @@ class TestVerifyNodeParallelMerge:
         FR-3.2: The returned verify_findings must include contributions from
         ALL 4 specialists — none must be overwritten by another.
         """
-        async def mock_specialist(name: str, artifact_ref: str, task_id: str) -> list[str]:
+        async def mock_specialist(name: str, artifact_ref: str, task_id: str, worktree_path: str = "") -> list[str]:
             return [f"{name}:result-1", f"{name}:result-2"]
 
         monkeypatch.setattr(nodes_module, "_invoke_specialist", mock_specialist)
@@ -104,7 +104,7 @@ class TestVerifyNodeParallelMerge:
         FR-3.2: no findings must be lost in the merge.
         4 specialists × 2 findings each = 8 total.
         """
-        async def mock_specialist(name: str, artifact_ref: str, task_id: str) -> list[str]:
+        async def mock_specialist(name: str, artifact_ref: str, task_id: str, worktree_path: str = "") -> list[str]:
             return [f"{name}:a", f"{name}:b"]
 
         monkeypatch.setattr(nodes_module, "_invoke_specialist", mock_specialist)
@@ -118,7 +118,7 @@ class TestVerifyNodeParallelMerge:
 
     def test_verify_returns_dict_with_verify_findings_key(self, monkeypatch):
         """verify() must return a dict with 'verify_findings' key."""
-        async def mock_specialist(name, artifact_ref, task_id):
+        async def mock_specialist(name, artifact_ref, task_id, worktree_path=""):
             return []
 
         monkeypatch.setattr(nodes_module, "_invoke_specialist", mock_specialist)
@@ -131,7 +131,7 @@ class TestVerifyNodeParallelMerge:
 
     def test_verify_returns_empty_when_no_findings(self, monkeypatch):
         """verify() returns [] when all specialists find nothing."""
-        async def mock_specialist(name, artifact_ref, task_id):
+        async def mock_specialist(name, artifact_ref, task_id, worktree_path=""):
             return []
 
         monkeypatch.setattr(nodes_module, "_invoke_specialist", mock_specialist)
@@ -143,7 +143,7 @@ class TestVerifyNodeParallelMerge:
         """Each specialist must receive the build_artifact_ref from state."""
         received_refs: list[str] = []
 
-        async def mock_specialist(name: str, artifact_ref: str, task_id: str) -> list[str]:
+        async def mock_specialist(name: str, artifact_ref: str, task_id: str, worktree_path: str = "") -> list[str]:
             received_refs.append(artifact_ref)
             return []
 
@@ -161,7 +161,7 @@ class TestVerifyNodeParallelMerge:
         """Each specialist must receive the task_id from state."""
         received_ids: list[str] = []
 
-        async def mock_specialist(name: str, artifact_ref: str, task_id: str) -> list[str]:
+        async def mock_specialist(name: str, artifact_ref: str, task_id: str, worktree_path: str = "") -> list[str]:
             received_ids.append(task_id)
             return []
 
@@ -232,7 +232,7 @@ class TestS1NonAccumulation:
         """
         round_findings = {"current": ["f1", "f2"]}
 
-        async def mock_specialist(name, artifact_ref, task_id):
+        async def mock_specialist(name, artifact_ref, task_id, worktree_path=""):
             return [round_findings["current"][0], round_findings["current"][1]]
 
         monkeypatch.setattr(nodes_module, "_invoke_specialist", mock_specialist)
@@ -273,7 +273,7 @@ class TestS1NonAccumulation:
         FR-3.2 (parallel within round): within a single verify call, findings
         from all 4 specialists must be present (none lost due to overwrite).
         """
-        async def mock_specialist(name, artifact_ref, task_id):
+        async def mock_specialist(name, artifact_ref, task_id, worktree_path=""):
             return [f"{name}-finding"]
 
         monkeypatch.setattr(nodes_module, "_invoke_specialist", mock_specialist)
@@ -321,7 +321,7 @@ class TestInvokeSpecialistSeam:
 
     def test_seam_is_monkeypatchable(self, monkeypatch):
         """_invoke_specialist can be replaced by monkeypatch in tests."""
-        async def spy(name, artifact_ref, task_id):
+        async def spy(name, artifact_ref, task_id, worktree_path=""):
             return [f"mocked-{name}"]
 
         monkeypatch.setattr(nodes_module, "_invoke_specialist", spy)
@@ -389,7 +389,7 @@ class TestRunVerifyParallel:
 
     def test_returns_list(self, monkeypatch):
         """_run_verify_parallel must return a list."""
-        async def mock_specialist(name, artifact_ref, task_id):
+        async def mock_specialist(name, artifact_ref, task_id, worktree_path=""):
             return []
 
         monkeypatch.setattr(nodes_module, "_invoke_specialist", mock_specialist)
@@ -398,7 +398,7 @@ class TestRunVerifyParallel:
 
     def test_merges_all_specialist_results(self, monkeypatch):
         """_run_verify_parallel merges results from all 4 specialists."""
-        async def mock_specialist(name, artifact_ref, task_id):
+        async def mock_specialist(name, artifact_ref, task_id, worktree_path=""):
             return [f"{name}:x"]
 
         monkeypatch.setattr(nodes_module, "_invoke_specialist", mock_specialist)

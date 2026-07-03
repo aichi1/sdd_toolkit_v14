@@ -27,7 +27,7 @@ pip install -e .
 ### v14 ランタイムを直接使う
 
 ```bash
-# テスト（415件）で動作確認
+# テスト（444件）で動作確認
 python3 -m pytest tests/ -q
 
 # 承認レビュー面（localhost:8765）
@@ -54,7 +54,7 @@ g = build_graph()   # state.db に永続化、interrupt で停止 → /review or
 │                      # security_checks(CWE) / eval_suite(回帰+スコア) / observability
 ├─ review/             # FastAPI 承認面（/review /approve /reject、副作用なし）
 ├─ specs/              # 配布版憲法（constitution.md）
-├─ tests/              # 415テスト（E2E: spec_load〜merge 一気通貫 + D5 負のスイープ）
+├─ tests/              # 444テスト（E2E: spec_load〜merge 一気通貫 + D5 負のスイープ）
 ├─ docs/               # ツールキット文書 + v14-reference/（v14 自身の設計書）
 ├─ pyproject.toml      # 依存 pin（langgraph / claude-agent-sdk / chromadb / fastapi / langsmith）
 └─ .mcp.json           # ctx / law の MCP 登録
@@ -81,8 +81,19 @@ g = build_graph()   # state.db に永続化、interrupt で停止 → /review or
 - **実配線済み**: `SDD_RUN_REAL_VERIFY=1` で verify の4専門家（validator/tester/reviewer/security）を Claude Agent SDK で並列実行し、`FINDING:` 行を所見化。`SDD_RUN_REAL_BUILDER=1` で build を実 Builder 実行（`.sdd/artifact_manifest.json` の `primary_artifact` を成果物とし、無ければ `artifact.txt`）。
 - **実コスト計測**: 各実呼び出しの `ResultMessage.total_cost_usd`/トークンを観測ストアに `agent_call` 行として記録。`eval_node` の run 行はそれらの実合算値を残す（FR-4.2 が実値に）。
 - **認証**: `ANTHROPIC_API_KEY` 未設定なら Claude Code のログイン（Pro/Max サブスク）を流用（課金は API でなくサブスク枠）。設定されていると API 従量課金になるので注意。
+- **二層防御（第4/5条）は実モードにも配線済み**: すべての実エージェント呼び出し（builder / 4専門家）に
+  `harness.hooks.make_hooks()` の PreToolUse ガード（禁止操作の拒否＋安全な読取ツールの自動承認＋監査ログ）が
+  常時適用される。`permission_mode="bypassPermissions"` はコードに存在しない。tester は当面 `Read`+`Grep` の
+  読取専用（Bash はハード境界=podman 未経由のため除去。実テスト実行は将来 `run_in_sandbox` 経由の専用ツールで再導入）。
 - **スモーク**: `python3 -m harness.smoke_real_sdk` で最小 query と総コストを表示（手動 opt-in）。
-- 既定（env gate 未設定）ではオフライン stub のまま。`pytest tests/ -q` は実 API 0 で全 green（433 tests）。
+  実 verify を回す際は監査ログ（`SDD_AUDIT_LOG`、既定 `logs/audit.jsonl`）に専門家のツール呼び出しが記録される。
+- 既定（env gate 未設定）ではオフライン stub のまま。`pytest tests/ -q` は実 API 0 で全 green（444 tests）。
+
+### セキュリティ修正履歴
+- **2026-07-03 防御境界配線（F-1〜F-6）**: 実モード配線（d567189）で verify/builder 実行経路が第4/5条の
+  二層防御を両方バイパスしていたリグレッションを是正。hooks を全実エージェントに接続、`bypassPermissions` 全廃、
+  tester の Bash 除去、専門家 cwd を worktree ルートに修正、docstring ドリフト解消、生成物の追跡除外。
+  詳細は `.steering/20260703-defense-boundary-wiring/`。
 
 ## 既知の制約（誠実な開示）
 
@@ -92,4 +103,4 @@ g = build_graph()   # state.db に永続化、interrupt で停止 → /review or
 - 詳細は `docs/v14-reference/`、`.steering/20260703-real-agent-sdk-wiring/`、構築記録アーカイブ `~/.sdd-knowledge/docs-archive/2026-07-02_small_implementation_sdd_toolkit_v14/` を参照。
 
 ---
-Built by dogfooding: **v12 の SDD ワークフローで v14 自身を構築**（9フェーズ、D1〜D5 全 PASS、7軸 4.000 vs v6.4 3.571）。実 Agent SDK 配線は post-v14 の `/add-feature` で追加（433 tests）。
+Built by dogfooding: **v12 の SDD ワークフローで v14 自身を構築**（9フェーズ、D1〜D5 全 PASS、7軸 4.000 vs v6.4 3.571）。実 Agent SDK 配線と防御境界修正は post-v14 の `/add-feature` で追加（444 tests）。

@@ -2,6 +2,13 @@
 .DS_Store
 Thumbs.db
 
+# Python build/runtime artifacts (F-5: never track generated files)
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+
 # Windows security zone metadata (from downloads)
 *:Zone.Identifier
 *Zone.Identifier
