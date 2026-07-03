@@ -356,17 +356,28 @@ class TestInvokeSpecialistSeam:
         result = asyncio.run(_invoke_specialist("validator", "/tmp/art.txt", "task"))
         assert result == []
 
-    def test_real_mode_raises_not_implemented(self, monkeypatch):
+    def test_real_mode_runs_via_query_seam(self, tmp_path, monkeypatch):
         """
-        S-3 (Phase 5): SDD_RUN_REAL_VERIFY=1 must raise NotImplementedError,
-        not silently return [].  Full Agent SDK integration is deferred
-        (post-v14 initial release scope).
-        Tests that monkeypatch _invoke_specialist are unaffected because they
-        replace the entire function before calling verify().
+        Post-v14 wiring: SDD_RUN_REAL_VERIFY=1 no longer raises NotImplementedError.
+        It runs the specialist via the mockable _run_query seam, parses
+        'FINDING:' lines, and records the call's cost.  (The former
+        NotImplementedError contract is replaced — see .steering/
+        20260703-real-agent-sdk-wiring.)  Full offline coverage lives in
+        tests/test_real_agent_sdk.py; this test just guards the seam contract.
         """
+        import graph.nodes as nodes_mod
+
         monkeypatch.setenv("SDD_RUN_REAL_VERIFY", "1")
-        with pytest.raises(NotImplementedError, match="deferred"):
-            asyncio.run(_invoke_specialist("validator", "/tmp/art.txt", "task"))
+        monkeypatch.setenv("SDD_OBS_STORE", str(tmp_path / "obs.jsonl"))
+
+        async def fake_run_query(prompt, options):
+            from types import SimpleNamespace
+            rm = SimpleNamespace(total_cost_usd=0.0, usage={}, result=None, num_turns=1)
+            return "FINDING: example issue", rm
+
+        monkeypatch.setattr(nodes_mod, "_run_query", fake_run_query)
+        result = asyncio.run(_invoke_specialist("validator", "/tmp/art.txt", "task"))
+        assert result == ["[validator] example issue"]
 
 
 # ---------------------------------------------------------------------------

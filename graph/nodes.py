@@ -80,6 +80,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import json
 import os
 import subprocess
 from pathlib import Path
@@ -90,7 +91,7 @@ from langgraph.types import Command, interrupt
 from claude_agent_sdk import ClaudeAgentOptions, query
 
 from graph.state import TaskState
-from harness.sandbox import carve_worktree, merge_worktree
+from harness.sandbox import _slug, carve_worktree, merge_worktree
 
 # Phase 6 imports: eval_suite + observability
 from harness.eval_suite import (
@@ -98,7 +99,12 @@ from harness.eval_suite import (
     MAX_EVAL_ATTEMPTS,
     evaluate as _eval_suite_evaluate,
 )
-from harness.observability import record_run
+from harness.observability import (
+    MAX_TURNS,
+    record_agent_call,
+    record_run,
+    sum_agent_costs,
+)
 
 # ---------------------------------------------------------------------------
 # Phase 3 context constants
@@ -107,6 +113,108 @@ from harness.observability import record_run
 _CONTEXT_DEFAULT_K = 5          # default number of spec slices to retrieve
 _IMMUTABLE_HEADER = "[IMMUTABLE BLOCK]"
 _SLICES_HEADER = "[TASK-SPECIFIC SLICES]"
+
+# ---------------------------------------------------------------------------
+# Real Agent SDK wiring — pure helpers (post-v14 / .steering real-agent-sdk)
+#
+# These are side-effect-free and independently unit-tested.  The SDK-touching
+# code (query) is isolated in _run_query so the pure helpers never need the
+# network or an API key.  Messages are handled by DUCK TYPING (a result message
+# has .total_cost_usd; a content message has .content) rather than isinstance,
+# so tests can pass simple fakes and the code is resilient to SDK version drift.
+# ---------------------------------------------------------------------------
+
+_FINDING_PREFIX = "FINDING:"
+
+
+def _parse_findings(text: str, role: str) -> list[str]:
+    """Extract 'FINDING:'-prefixed lines from agent text → ['[role] body', ...].
+
+    Lines not starting with FINDING: are ignored.  Returns [] when the agent
+    reported no findings (clean artifact), which is the desired signal for the
+    verify/eval gate — an empty list means "nothing to flag".
+    """
+    findings: list[str] = []
+    for line in (text or "").splitlines():
+        stripped = line.strip()
+        if stripped.startswith(_FINDING_PREFIX):
+            body = stripped[len(_FINDING_PREFIX):].strip()
+            if body:
+                findings.append(f"[{role}] {body}")
+    return findings
+
+
+def _extract_cost(result_msg) -> tuple[float, dict[str, int]]:
+    """Pull (total_cost_usd, {'input':N,'output':M}) from a ResultMessage.
+
+    Tolerates usage being a dict OR an object, and missing fields → 0.
+    """
+    cost = float(getattr(result_msg, "total_cost_usd", 0.0) or 0.0)
+    usage = getattr(result_msg, "usage", None)
+
+    def _get(u, key):
+        if u is None:
+            return 0
+        if isinstance(u, dict):
+            val = u.get(key, 0)
+        else:
+            val = getattr(u, key, 0)
+        try:
+            return int(val or 0)
+        except (TypeError, ValueError):
+            return 0
+
+    tokens = {
+        "input": _get(usage, "input_tokens") or _get(usage, "input"),
+        "output": _get(usage, "output_tokens") or _get(usage, "output"),
+    }
+    return cost, tokens
+
+
+def _resolve_artifact(cwd: str) -> str:
+    """Resolve the build artifact path for `cwd`.
+
+    Prefers a builder-declared manifest at `{cwd}/.sdd/artifact_manifest.json`
+    ({"primary_artifact": "<relative or absolute path>"}); falls back to
+    `{cwd}/artifact.txt` when no manifest exists (Phase 1/2 compatible).
+    """
+    manifest = Path(cwd) / ".sdd" / "artifact_manifest.json"
+    if manifest.is_file():
+        try:
+            data = json.loads(manifest.read_text(encoding="utf-8"))
+            primary = data.get("primary_artifact")
+            if primary:
+                p = Path(primary)
+                if not p.is_absolute():
+                    p = Path(cwd) / p
+                return str(p)
+        except (json.JSONDecodeError, OSError, TypeError):
+            pass  # fall back to the default artifact
+    return str(Path(cwd) / "artifact.txt")
+
+
+async def _run_query(prompt: str, options) -> tuple[str, object | None]:
+    """Thin, mockable seam around the SDK `query()`.
+
+    Runs the query, concatenates assistant text, and captures the final
+    ResultMessage.  Returns (text, result_msg_or_None).  Tests monkeypatch this
+    function so no network/API key is needed; the real body is exercised only
+    by the opt-in smoke script and real runs.
+    """
+    text_parts: list[str] = []
+    result_msg = None
+    async for msg in query(prompt=prompt, options=options):
+        if hasattr(msg, "total_cost_usd"):
+            result_msg = msg
+            # ResultMessage may also carry the final text in .result
+            if getattr(msg, "result", None):
+                text_parts.append(str(msg.result))
+        elif hasattr(msg, "content"):
+            for block in (msg.content or []):
+                block_text = getattr(block, "text", None)
+                if block_text:
+                    text_parts.append(str(block_text))
+    return "\n".join(text_parts), result_msg
 
 
 # ---------------------------------------------------------------------------
@@ -305,12 +413,21 @@ async def _invoke_builder(
 
     # --- Real mode (SDD_RUN_REAL_BUILDER=1) ---
     # Run the Agent SDK query; the builder agent writes artifacts to cwd.
-    # Events are consumed here; the builder's file writes are the side-effect.
-    async for _ in query(prompt=prompt, options=options):
-        pass
+    # The builder's file writes are the side-effect; we capture cost/tokens.
+    _text, result_msg = await _run_query(prompt=prompt, options=options)
+    if result_msg is not None:
+        cost, tokens = _extract_cost(result_msg)
+        # run_id = worktree dir name = _slug(task_id); eval_node sums by slug too.
+        record_agent_call(
+            run_id=Path(cwd).name,
+            role="builder",
+            total_cost_usd=cost,
+            tokens=tokens,
+            num_turns=getattr(result_msg, "num_turns", None),
+        )
 
-    # Primary artifact path (builder is expected to produce artifact.txt in cwd)
-    return str(Path(cwd) / "artifact.txt")
+    # Artifact path: builder-declared manifest → primary_artifact, else artifact.txt.
+    return _resolve_artifact(cwd)
 
 
 # ---------------------------------------------------------------------------
@@ -429,20 +546,26 @@ async def _invoke_specialist(
 
     Mode selection (controlled by SDD_RUN_REAL_VERIFY environment variable):
 
-      SDD_RUN_REAL_VERIFY=1  →  raises NotImplementedError (S-3 Phase 5).
-                                 Full Agent SDK integration is Phase 6 scope.
-                                 Raises instead of silently returning [] so that
-                                 accidental real-mode invocations are visible.
+      SDD_RUN_REAL_VERIFY=1  →  REAL mode (post-v14 wiring): runs the specialist
+                                 via the Agent SDK inside the worktree, parses
+                                 'FINDING:' lines into findings, and records the
+                                 call's cost/tokens (FR-4.2).  A specialist that
+                                 errors returns a single '[role] ERROR: …' finding
+                                 so one failure never loses the other specialists'
+                                 findings (asyncio.gather isolation).
 
       default (env var absent) →  stub mode: returns [] immediately, no API call.
 
     To isolate unit tests from both the API and network, monkeypatch this
-    module-level function before calling verify():
+    module-level function OR the smaller _run_query seam:
 
         monkeypatch.setattr(nodes_module, "_invoke_specialist", my_async_mock)
+        monkeypatch.setattr(nodes_module, "_run_query", my_async_query)
 
-    FR-3.3: specialist tool sets are defined in agents.definitions.SPECIALIST_TOOLS
+    FR-3.3: specialist tool sets come from agents.definitions.SPECIALIST_TOOLS
              and do NOT include the Task tool — no recursive sub-agent spawning.
+    第4条: the specialist runs with cwd = the worktree (parent of artifact_ref).
+    第2条: findings are short strings; cost/tokens go to the observation store.
 
     Args:
         specialist_name: One of "validator", "tester", "reviewer", "security".
@@ -450,20 +573,66 @@ async def _invoke_specialist(
         task_id:         Current task identifier for context.
 
     Returns:
-        List of finding strings from the specialist.
+        List of finding strings (each prefixed "[role] ").
     """
     if not os.environ.get("SDD_RUN_REAL_VERIFY"):
         # Stub mode: no API call.
         return []
 
-    # Real mode: full Agent SDK integration is Phase 6 scope.
-    # S-3 (Phase 5): raise NotImplementedError instead of silently returning []
-    # so that accidental real-mode invocations are immediately visible.
-    # Tests monkeypatch _invoke_specialist before calling verify(), so they
-    # are entirely unaffected by this branch.
-    raise NotImplementedError(
-        "real specialist invocation not yet implemented — deferred (post-v14 initial release)"
+    # --- Real mode (SDD_RUN_REAL_VERIFY=1) ---
+    from agents.definitions import SPECIALIST_TOOLS
+
+    tools = SPECIALIST_TOOLS.get(specialist_name, ["Read"])  # FR-3.3: no Task
+    # cwd = the worktree that holds the artifact (第4条: run inside the worktree)
+    cwd = str(Path(artifact_ref).parent) if artifact_ref else "."
+
+    concern = _SPECIALIST_CONCERN.get(
+        specialist_name, "quality issues in the artifact"
     )
+    system_prompt = (
+        f"You are the {specialist_name} reviewer in an SDD verify step. "
+        f"Inspect the build artifact and surrounding files in the working "
+        f"directory for {concern}. Use only your read-only tools. "
+        f"Output one line per issue, each starting with 'FINDING:' followed by a "
+        f"concise description. If you find no issues, output nothing."
+    )
+    prompt = (
+        f"Review the artifact for task '{task_id}'. "
+        f"Primary artifact: {artifact_ref}. "
+        f"Report issues as 'FINDING:' lines per your instructions."
+    )
+    options = ClaudeAgentOptions(
+        cwd=cwd,
+        allowed_tools=tools,
+        system_prompt=system_prompt,
+        max_turns=MAX_TURNS,
+        permission_mode="bypassPermissions",
+    )
+
+    try:
+        text, result_msg = await _run_query(prompt=prompt, options=options)
+        if result_msg is not None:
+            cost, tokens = _extract_cost(result_msg)
+            record_agent_call(
+                run_id=task_id,
+                role=specialist_name,
+                total_cost_usd=cost,
+                tokens=tokens,
+                num_turns=getattr(result_msg, "num_turns", None),
+            )
+        return _parse_findings(text, specialist_name)
+    except Exception as exc:  # noqa: BLE001 — isolate one specialist's failure
+        # Do not let one specialist's error drop the others (FR-3.2 robustness).
+        return [f"[{specialist_name}] ERROR: {exc}"]
+
+
+# CWE/quality concern each specialist focuses on (used in the real-mode prompt).
+_SPECIALIST_CONCERN: dict[str, str] = {
+    "validator": "spec/acceptance-criteria mismatches and missing deliverables",
+    "tester": "missing tests, untested error paths, and failing behavior",
+    "reviewer": "design, module boundaries, and maintainability problems",
+    "security": "security vulnerabilities (injection, secrets, unsafe deserialization)",
+}
 
 
 async def _run_verify_parallel(state: TaskState) -> list[str]:
@@ -575,13 +744,23 @@ def eval_node(state: TaskState) -> Command:
     eval_score: float = 0.0 if regressed else raw_score
 
     # ── Observability (FR-4.2 / 第8条) ────────────────────────────────────
-    # Always write a record — even in offline/stub mode with zeros.
+    # Always write a record.  Cost/tokens are the SUM of this run's real
+    # agent_call rows (builder + specialists).  In stub/offline mode no
+    # agent_call rows exist → totals are 0.0 (backward-compatible with tests).
     # SDD_OBS_STORE env var can redirect to a temp path in tests.
+    task_id = state.get("task_id", "unknown")
+    run_cost, run_tokens = sum_agent_costs(task_id)
+    slug = _slug(task_id)
+    if slug != task_id:  # builder rows are keyed by the worktree slug
+        slug_cost, slug_tokens = sum_agent_costs(slug)
+        run_cost += slug_cost
+        for k, v in slug_tokens.items():
+            run_tokens[k] = run_tokens.get(k, 0) + v
     record_run(
-        run_id=state.get("task_id", "unknown"),
+        run_id=task_id,
         attempt=attempt,
-        total_cost_usd=0.0,          # stub: 0.0 until real SDK ResultMessage is wired
-        tokens={"input": 0, "output": 0},  # stub placeholder (NFR-4 / FR-4.2)
+        total_cost_usd=run_cost,     # real sum of agent_call rows (0.0 in stub mode)
+        tokens=run_tokens,           # summed input/output tokens (FR-4.2)
         eval_score=eval_score,
         raw_eval_score=raw_score,
         regressed=regressed,

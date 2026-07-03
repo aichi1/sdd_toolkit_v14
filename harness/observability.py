@@ -148,6 +148,85 @@ def record_run(
     return record
 
 
+def record_agent_call(
+    run_id: str,
+    role: str,
+    total_cost_usd: float = 0.0,
+    tokens: dict[str, int] | None = None,
+    **metadata: Any,
+) -> dict:
+    """
+    Record a single real Agent SDK call (builder or specialist) to the store.
+
+    Written with record_type="agent_call" so it can be distinguished from
+    eval-run records (which have no record_type key).  eval_node later sums
+    these via sum_agent_costs() to report the real cost/token totals for a run
+    (FR-4.2 / 第8条 — the values are now real, not placeholder zeros).
+
+    Args:
+        run_id:         Task ID (or worktree slug) tying this call to a run.
+        role:           "builder" | "validator" | "tester" | "reviewer" | "security".
+        total_cost_usd: From ResultMessage.total_cost_usd.
+        tokens:         {"input": N, "output": M}; None → zeros.
+        **metadata:     Extra fields (model, num_turns, …).
+
+    Returns:
+        The record dict that was written.
+    """
+    if tokens is None:
+        tokens = {"input": 0, "output": 0}
+    record: dict[str, Any] = {
+        "record_id": str(uuid.uuid4()),
+        "record_type": "agent_call",
+        "run_id": run_id,
+        "role": role,
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        "total_cost_usd": total_cost_usd,
+        "tokens": tokens,
+        **metadata,
+    }
+    _write_record(record)
+    return record
+
+
+def sum_agent_costs(
+    run_id: str, store_path: Path | None = None
+) -> tuple[float, dict[str, int]]:
+    """
+    Sum the cost and tokens of all agent_call records for a given run_id.
+
+    Only records with record_type == "agent_call" are counted; eval-run records
+    (which lack that key) are excluded.  Returns (0.0, {"input":0,"output":0})
+    when no agent_call records exist — so stub/offline runs report zeros
+    exactly as before (backward-compatible with existing tests).
+
+    Args:
+        run_id:     The task_id / worktree slug to aggregate.
+        store_path: Override path. None → get_store_path().
+
+    Returns:
+        (total_cost_usd, {"input": Σ, "output": Σ, ...merged extra token keys}).
+    """
+    total_cost = 0.0
+    tokens: dict[str, int] = {"input": 0, "output": 0}
+    for rec in read_observations(store_path):
+        if rec.get("record_type") != "agent_call":
+            continue
+        if rec.get("run_id") != run_id:
+            continue
+        try:
+            total_cost += float(rec.get("total_cost_usd", 0.0) or 0.0)
+        except (TypeError, ValueError):
+            pass
+        rec_tokens = rec.get("tokens") or {}
+        for key, val in rec_tokens.items():
+            try:
+                tokens[key] = tokens.get(key, 0) + int(val)
+            except (TypeError, ValueError):
+                pass
+    return total_cost, tokens
+
+
 def read_observations(store_path: Path | None = None) -> list[dict]:
     """
     Read all run records from the local JSONL store.

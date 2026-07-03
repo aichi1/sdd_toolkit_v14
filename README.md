@@ -76,11 +76,20 @@ g = build_graph()   # state.db に永続化、interrupt で停止 → /review or
 
 `specs/constitution.md` が配布版の既定憲法です（10条、各条項は**原則＋強制点**のセット）。プロジェクト固有の憲法は `/init-task` 後に `docs/constitution.md` として整備し、改正は「仕様変更として扱い、更新→再検証」の手続きを踏みます。強制点の実例は `tests/test_e2e.py::TestE2ENegativeSweep`（違反入力6種の検出）を参照。
 
-## 既知の制約（v14 初版・誠実な開示）
+## 実 Agent SDK モード（post-v14 で配線済み）
 
-- `_invoke_builder` / `_invoke_specialist` の実 Agent SDK 呼び出しは env gate 付きスタブ（既定はオフライン）。実配線と実コスト計測（`ResultMessage.total_cost_usd`）は post-v14。
+- **実配線済み**: `SDD_RUN_REAL_VERIFY=1` で verify の4専門家（validator/tester/reviewer/security）を Claude Agent SDK で並列実行し、`FINDING:` 行を所見化。`SDD_RUN_REAL_BUILDER=1` で build を実 Builder 実行（`.sdd/artifact_manifest.json` の `primary_artifact` を成果物とし、無ければ `artifact.txt`）。
+- **実コスト計測**: 各実呼び出しの `ResultMessage.total_cost_usd`/トークンを観測ストアに `agent_call` 行として記録。`eval_node` の run 行はそれらの実合算値を残す（FR-4.2 が実値に）。
+- **認証**: `ANTHROPIC_API_KEY` 未設定なら Claude Code のログイン（Pro/Max サブスク）を流用（課金は API でなくサブスク枠）。設定されていると API 従量課金になるので注意。
+- **スモーク**: `python3 -m harness.smoke_real_sdk` で最小 query と総コストを表示（手動 opt-in）。
+- 既定（env gate 未設定）ではオフライン stub のまま。`pytest tests/ -q` は実 API 0 で全 green（433 tests）。
+
+## 既知の制約（誠実な開示）
+
+- 実モードは配線済みだが、専門家プロンプト・所見品質のチューニングは今後の課題（まず配線が完了した段階）。
 - LangSmith/OTel 送信は default-off の best-effort（ローカル JSONL が主シンク）。
-- 詳細は `docs/v14-reference/`（v14 の要件・設計・タスク・規約）と、構築記録アーカイブ `~/.sdd-knowledge/docs-archive/2026-07-02_small_implementation_sdd_toolkit_v14/` を参照。
+- `review/app.py` を async 化する場合、build/verify ノードの `asyncio.run()` は実行中イベントループと衝突するため注意（P3 既知）。
+- 詳細は `docs/v14-reference/`、`.steering/20260703-real-agent-sdk-wiring/`、構築記録アーカイブ `~/.sdd-knowledge/docs-archive/2026-07-02_small_implementation_sdd_toolkit_v14/` を参照。
 
 ---
-Built by dogfooding: **v12 の SDD ワークフローで v14 自身を構築**（9フェーズ、415テスト、D1〜D5 全 PASS、7軸 4.000 vs v6.4 3.571）。
+Built by dogfooding: **v12 の SDD ワークフローで v14 自身を構築**（9フェーズ、D1〜D5 全 PASS、7軸 4.000 vs v6.4 3.571）。実 Agent SDK 配線は post-v14 の `/add-feature` で追加（433 tests）。
